@@ -1,4 +1,4 @@
-# RunPod Serverless GPU worker image — runs python/runpod_handler.py.
+# RunPod Serverless GPU worker image — runs python/handler.py.
 # Only the python/ directory matters here; the PHP app (app/, public/,
 # vendor/) never runs on this side, it stays on Hostinger. Deployed via
 # RunPod's GitHub integration (docs.runpod.io/serverless/workers/github-integration),
@@ -30,4 +30,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY python/ /app/
 
-CMD ["python", "-u", "runpod_handler.py"]
+CMD ["python", "-u", "handler.py"]

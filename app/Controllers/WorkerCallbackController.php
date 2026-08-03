@@ -13,7 +13,7 @@ use App\Models\Setting;
 use App\Services\JobService;
 
 /**
- * Endpoints the RunPod worker (python/runpod_handler.py) calls back into —
+ * Endpoints the RunPod worker (python/handler.py) calls back into —
  * never used by a logged-in user's browser, so these don't go through
  * Auth::check()/session cookies at all. Authenticated instead by a shared
  * secret (WORKER_API_SECRET in .env) every RunPod job carries as part of
@@ -67,9 +67,9 @@ final class WorkerCallbackController extends Controller
 
     /**
      * Serves one image from the Local Backgrounds Folder so
-     * runpod_handler.py can fetch the same candidates a local job would
+     * handler.py can fetch the same candidates a local job would
      * have picked from disk directly — see
-     * _download_local_backgrounds() in runpod_handler.py.
+     * _download_local_backgrounds() in handler.py.
      */
     public function backgroundImage(Request $request): void
     {

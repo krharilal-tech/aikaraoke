@@ -596,7 +596,7 @@ final class JobService
     /**
      * Remote-GPU counterpart to the local proc_open() path above: instead
      * of spawning python/worker.py as a subprocess on this machine, kicks
-     * off python/runpod_handler.py running on RunPod's infrastructure via
+     * off python/handler.py running on RunPod's infrastructure via
      * their async job API (`/run` — not `/runsync`, since jobs here can
      * run for close to an hour, far past runsync's ~5-minute result
      * window). RunPod calls back to WorkerCallbackController as the job
@@ -609,9 +609,9 @@ final class JobService
 
         // Neither of these means anything on a remote machine — job_dir is
         // a local path on RunPod's own (ephemeral) disk that
-        // runpod_handler.py creates itself, and local backgrounds get
+        // handler.py creates itself, and local backgrounds get
         // fetched by filename over HTTP instead of read from a shared
-        // folder (see _download_local_backgrounds() in runpod_handler.py).
+        // folder (see _download_local_backgrounds() in handler.py).
         unset($config['job_dir'], $config['local_backgrounds_path']);
 
         if ($config['background_source'] === 'local') {

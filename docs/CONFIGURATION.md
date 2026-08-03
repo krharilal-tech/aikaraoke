@@ -209,8 +209,8 @@ see" needed a remote equivalent:
 |---|---|
 | PHP writes `config.json` to the job's local folder; Python reads it | PHP sends the same fields as the RunPod job's `input` (`JobService::buildJobConfig()` / `dispatchToRunPod()`) |
 | Python writes `status.json` locally via `StatusWriter`; PHP polls that file | Python POSTs the same JSON shape to `POST /api/worker/jobs/{id}/status` via `RemoteStatusWriter` — same interface, so **no stage script had to change** |
-| Local backgrounds folder is just `Path.iterdir()` | `runpod_handler.py` downloads each file from `GET /api/worker/backgrounds/{filename}` into a temp folder first, so `local_backgrounds.py::pick_images()` still just sees a local folder |
-| The rendered video is already at `storage/jobs/{id}/karaoke.mp4` | `runpod_handler.py` uploads it to `POST /api/worker/jobs/{id}/upload` before the job is allowed to report "completed" (see `before_completion` in `worker.py::run_pipeline()`) — otherwise the app could tell a user their video is ready before the file exists on Hostinger |
+| Local backgrounds folder is just `Path.iterdir()` | `handler.py` downloads each file from `GET /api/worker/backgrounds/{filename}` into a temp folder first, so `local_backgrounds.py::pick_images()` still just sees a local folder |
+| The rendered video is already at `storage/jobs/{id}/karaoke.mp4` | `handler.py` uploads it to `POST /api/worker/jobs/{id}/upload` before the job is allowed to report "completed" (see `before_completion` in `worker.py::run_pipeline()`) — otherwise the app could tell a user their video is ready before the file exists on Hostinger |
 
 All three `/api/worker/...` endpoints (`WorkerCallbackController`) are
 authenticated by a shared secret, not a session — every RunPod job carries

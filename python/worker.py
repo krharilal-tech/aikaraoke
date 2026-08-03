@@ -104,7 +104,7 @@ def run_pipeline(
     handling below, so it lives in one place rather than two.
 
     before_completion runs after every stage finishes but before the
-    "completed" status is sent — runpod_handler.py uses this to upload the
+    "completed" status is sent — handler.py uses this to upload the
     finished video to PHP first, so the app never reports a job as
     complete before the video file actually exists on Hostinger. If it
     raises, the exception falls through to the same failure handling as
