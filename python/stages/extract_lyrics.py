@@ -17,7 +17,7 @@ from typing import Any
 
 from services import lyrics_providers
 from services.status_writer import StatusWriter
-from services.whisperx_engine import transcribe
+from services.whisperx_engine import select_device, transcribe
 
 
 def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
@@ -65,7 +65,7 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         vocals_path = job_dir / "vocals.wav"
         whisperx_model = config.get("whisperx_model") or "medium"
 
-        transcription = transcribe(str(vocals_path), whisperx_model, device="cpu", language=forced_language)
+        transcription = transcribe(str(vocals_path), whisperx_model, device=select_device(), language=forced_language)
         segments = transcription.get("segments", [])
         text = " ".join(segment.get("text", "").strip() for segment in segments).strip()
         language = transcription.get("language", "en")

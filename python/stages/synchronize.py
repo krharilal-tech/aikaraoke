@@ -18,7 +18,7 @@ from typing import Any
 
 from services.ffmpeg_utils import probe_duration_seconds
 from services.status_writer import StatusWriter
-from services.whisperx_engine import align_words, build_segments_from_text
+from services.whisperx_engine import align_words, build_segments_from_text, select_device
 
 
 def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
@@ -43,7 +43,7 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
             status.log(f"Built {len(segments)} rough segment(s) from provider text for alignment")
 
         status.log("Running WhisperX forced alignment…")
-        words, used_forced_alignment = align_words(str(vocals_path), segments, language, device="cpu")
+        words, used_forced_alignment = align_words(str(vocals_path), segments, language, device=select_device())
 
         if used_forced_alignment:
             status.log(f"Aligned {len(words)} word(s)")

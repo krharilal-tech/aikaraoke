@@ -45,7 +45,57 @@ def _disable_huggingface_symlinks() -> None:
     hf_file_download.are_symlinks_supported = lambda cache_dir=None: False
 
 
+def _allow_legacy_torch_checkpoint_loading() -> None:
+    """PyTorch 2.6 flipped torch.load()'s weights_only default from False to
+    True — a real security improvement (blocks arbitrary code execution
+    from untrusted pickled checkpoints), but it broke loading pyannote.audio's
+    pretrained VAD checkpoint (used internally by whisperx.load_model() for
+    the vad_filter=True path — see _detect_restricted_language() below),
+    which embeds an omegaconf.listconfig.ListConfig object alongside the
+    tensor weights: "WeightsUnpickler error: Unsupported global: GLOBAL
+    omegaconf.listconfig.ListConfig was not an allowed global by default."
+
+    PyTorch's own error message offers two fixes: allowlist the specific
+    class via torch.serialization.add_safe_globals(...), or restore the old
+    default entirely. Allowlisting one class at a time risks a
+    whack-a-mole cycle — the next model with a different embedded config
+    type would just hit the same wall again. Since every checkpoint this
+    app loads comes from a well-known, trusted source (WhisperX/pyannote's
+    own published models, Meta's Demucs releases, the Malayalam-specific
+    HuggingFace checkpoint — never an arbitrary user upload), restoring the
+    permissive pre-2.6 default for this process is the pragmatic choice:
+    only override the default when a caller doesn't explicitly set
+    weights_only itself, so nothing here silently overrides an intentional
+    True elsewhere."""
+
+    import torch
+
+    original_load = torch.load
+
+    def _patched_load(*args: Any, **kwargs: Any) -> Any:
+        kwargs.setdefault("weights_only", False)
+        return original_load(*args, **kwargs)
+
+    torch.load = _patched_load
+
+
 _disable_huggingface_symlinks()
+_allow_legacy_torch_checkpoint_loading()
+
+
+def select_device() -> str:
+    """Shared by every stage that loads a torch model (this module,
+    stages/separate_vocals.py, services/malayalam_asr.py) — these all used
+    to hardcode "cpu" unconditionally, which was harmless on the WAMP dev
+    box (no GPU either way) but meant none of them actually used RunPod's
+    GPU once processing moved there, defeating half the point of that
+    migration. "cuda" when one's actually available, "cpu" otherwise
+    (still correct locally)."""
+
+    import torch
+
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
 
 # Keep in sync with the <select> in app/Views/settings/index.php — these are
 # the only languages "Transcription Language: Auto-detect" is allowed to

@@ -17,6 +17,7 @@ from typing import Any
 
 from services.ffmpeg_utils import run_ffmpeg
 from services.status_writer import StatusWriter
+from services.whisperx_engine import select_device
 
 # Demucs' vocal-isolation model was trained mostly on Western pop/rock
 # stems, and can misclassify reedy wind instruments with a voice-like
@@ -42,6 +43,7 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
 
     model = config.get("demucs_model") or "htdemucs"
     output_dir = job_dir / "demucs_output"
+    device = select_device()
 
     # Invoked as "<venv python> -m demucs" (not a standalone "demucs" binary)
     # so it always resolves against the interpreter this worker itself is
@@ -51,12 +53,12 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         "-m", "demucs",
         "-n", model,
         "--two-stems", "vocals",
-        "--device", "cpu",
+        "--device", device,
         "-o", str(output_dir),
         str(input_path),
     ]
 
-    status.log(f"Running Demucs (model={model}, this can take a while on CPU)…")
+    status.log(f"Running Demucs (model={model}, device={device})…")
 
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 

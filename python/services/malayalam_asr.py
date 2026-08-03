@@ -42,10 +42,20 @@ def transcribe_malayalam(audio_path: str) -> dict[str, Any]:
     import whisperx
     from transformers import WhisperForConditionalGeneration, WhisperProcessor
 
+    from services.whisperx_engine import select_device
+
+    # This model used to never move itself (or its inputs) off the default
+    # CPU placement transformers gives a freshly-loaded model — harmless
+    # locally (no GPU either way), but it meant this specific model, the
+    # slowest step in the whole pipeline for exactly the songs this app's
+    # target users care about most (30-50 minutes on CPU for a single
+    # song), never actually used RunPod's GPU either.
+    device = select_device()
+
     audio = whisperx.load_audio(audio_path)
 
     processor = WhisperProcessor.from_pretrained(MODEL_ID)
-    model = WhisperForConditionalGeneration.from_pretrained(MODEL_ID)
+    model = WhisperForConditionalGeneration.from_pretrained(MODEL_ID).to(device)
     model.eval()
     forced_decoder_ids = processor.get_decoder_prompt_ids(language="ml", task="transcribe")
 
@@ -62,7 +72,7 @@ def transcribe_malayalam(audio_path: str) -> dict[str, Any]:
                 # near-empty input.
                 continue
 
-            inputs = processor(chunk, sampling_rate=SAMPLE_RATE, return_tensors="pt")
+            inputs = processor(chunk, sampling_rate=SAMPLE_RATE, return_tensors="pt").to(device)
 
             with torch.no_grad():
                 predicted_ids = model.generate(
