@@ -56,3 +56,11 @@ transformers>=4.40.0
 # container and local dev installs can't drift out of sync on every other
 # dependency they do share.
 runpod>=1.7.0
+
+# runpod/base's image sets HF_HUB_ENABLE_HF_TRANSFER=1 by default (faster
+# HuggingFace downloads), but huggingface_hub only actually uses that
+# accelerated path if the hf_transfer package is separately installed —
+# without it, every huggingface_hub download (whisperx/pyannote's VAD and
+# alignment models, the Malayalam checkpoint) fails outright rather than
+# silently falling back to the normal downloader.
+hf_transfer>=0.1.6
