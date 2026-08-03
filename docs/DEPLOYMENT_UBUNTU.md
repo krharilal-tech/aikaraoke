@@ -7,7 +7,8 @@ Production deployment on Ubuntu 22.04/24.04 with Apache.
 ```bash
 sudo apt update
 sudo apt install -y apache2 mysql-server php8.1 php8.1-mysql php8.1-mbstring \
-  php8.1-xml php8.1-cli composer python3 python3-venv python3-pip ffmpeg git
+  php8.1-xml php8.1-cli composer python3 python3-venv python3-pip ffmpeg \
+  fonts-lohit-mlym fonts-lohit-taml fonts-lohit-deva git
 ```
 
 Confirm FFmpeg has the codecs this app needs:
@@ -19,6 +20,17 @@ ffmpeg -version | grep -o -- '--enable-libass\|--enable-libx264'
 If your distro's FFmpeg build lacks `libass` or `libx264`, install a
 static build instead (e.g. from johnvansickle.com) and point Settings at
 its path.
+
+The `fonts-lohit-*` packages matter as much as libass itself: the karaoke
+subtitle style requests "Arial" (`python/services/ass_builder.py`), which
+has no Malayalam/Tamil/Hindi glyphs. Desktop OSes silently substitute a
+font that does; a bare server has no such fallback, so without fonts that
+cover those scripts installed, libass renders empty boxes (`.notdef`
+tofu) for every non-Latin lyric instead of erroring — easy to miss until
+a real non-English song is rendered. Lohit covers exactly the non-Latin
+languages this app transcribes (Tamil/Malayalam/Hindi) without pulling in
+the much larger `fonts-noto` metapackage's CJK/emoji/dozens-of-scripts
+bulk this app never uses.
 
 ## 2. Deploy the code
 

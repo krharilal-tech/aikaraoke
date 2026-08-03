@@ -26,8 +26,22 @@ RUN ln -sf $(which python3.11) /usr/local/bin/python && \
 # Same libass check as docs/DEPLOYMENT_UBUNTU.md flags for the plain VPS
 # path — the karaoke subtitle burn-in needs it, and not every distro
 # ffmpeg package ships it by default.
+#
+# fonts-lohit-* matter as much as libass itself: the ASS style requests
+# "Arial" (services/ass_builder.py), which has no Malayalam/Tamil/Hindi
+# glyphs, and on Windows locally GDI silently substitutes a font that
+# does. This bare Linux container has no such fallback, so without fonts
+# that actually cover those scripts, libass renders .notdef boxes for
+# every non-Latin lyric instead of erroring — a real job hit exactly this
+# on a Malayalam song. The Lohit family covers exactly the non-Latin
+# languages this app transcribes (CANDIDATE_LANGUAGES in
+# services/whisperx_engine.py: Tamil, Malayalam, Hindi), each as a small,
+# single-script package — deliberately not the much larger fonts-noto
+# metapackage (CJK + emoji + dozens of scripts this app never renders),
+# given the container's disk headroom is already tight.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ffmpeg \
+    && apt-get install -y --no-install-recommends \
+        ffmpeg fonts-lohit-mlym fonts-lohit-taml fonts-lohit-deva \
     && rm -rf /var/lib/apt/lists/* \
     && ffmpeg -version | grep -q -- '--enable-libass' \
     || (echo "FFmpeg build is missing libass support" && exit 1)
