@@ -31,3 +31,11 @@ whisperx>=3.1.1
 # docs/TROUBLESHOOTING.md), so Malayalam transcription loads a
 # Malayalam-finetuned checkpoint via transformers directly instead.
 transformers>=4.40.0
+
+# --- RunPod Serverless GPU worker (runpod_handler.py) ---
+# Only actually used when running inside the RunPod container — harmless,
+# lightweight extra install in a local WAMP/Ubuntu venv that never imports
+# it. Kept in the same requirements.txt rather than a separate file so the
+# container and local dev installs can't drift out of sync on every other
+# dependency they do share.
+runpod>=1.7.0

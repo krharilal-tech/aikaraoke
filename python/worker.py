@@ -22,6 +22,7 @@ import sys
 import time
 import traceback
 from pathlib import Path
+from typing import Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -89,13 +90,25 @@ def put_ffmpeg_on_path(config: dict) -> None:
         os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
 
 
-def run_pipeline(stages: list[tuple[str, str, int, int]], config: dict, status: StatusWriter) -> int:
+def run_pipeline(
+    stages: list[tuple[str, str, int, int]],
+    config: dict,
+    status: StatusWriter,
+    before_completion: Callable[[], None] | None = None,
+) -> int:
     """Runs a sequence of (state, label, start_pct, end_pct) pipeline stages
     in order against an already-loaded config/status pair, then marks the
     job completed. Used both for a fresh job (main(), given the full
     PIPELINE) and for resuming a job partway through (resume_job.py, given
     a slice of PIPELINE) — both need the exact same crash-hardened failure
-    handling below, so it lives in one place rather than two."""
+    handling below, so it lives in one place rather than two.
+
+    before_completion runs after every stage finishes but before the
+    "completed" status is sent — runpod_handler.py uses this to upload the
+    finished video to PHP first, so the app never reports a job as
+    complete before the video file actually exists on Hostinger. If it
+    raises, the exception falls through to the same failure handling as
+    a stage raising (the job is marked failed, not falsely completed)."""
 
     try:
         for state, label, start_pct, end_pct in stages:
@@ -106,6 +119,9 @@ def run_pipeline(stages: list[tuple[str, str, int, int]], config: dict, status: 
 
             status.update(progress_percent=end_pct)
             status.log(f"Finished stage: {label}")
+
+        if before_completion is not None:
+            before_completion()
 
         status.update(
             state="completed",

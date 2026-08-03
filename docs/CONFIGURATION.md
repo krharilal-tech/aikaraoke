@@ -188,3 +188,54 @@ On Windows/WAMP (this project's dev environment), there's no cron — use
 Task Scheduler with an action of `"C:\wamp64\bin\php\php8.1.31\php.exe"
 C:\wamp64\www\aikaraoke\bin\sync-jobs.php`, or just run these manually
 while testing.
+
+## RunPod Serverless integration
+
+By default, `JobService::spawnWorker()` runs `python/worker.py` as a local
+subprocess on whatever machine PHP itself is running on (`proc_open()` +
+`nohup`/`start /B`) — fine for a VPS, but shared/cloud hosting (Hostinger
+Cloud Hosting included) can't run long-lived background processes or
+install system-level ML dependencies. Filling in `RUNPOD_API_KEY` and
+`RUNPOD_ENDPOINT_ID` in `.env` switches every new job to running instead
+on a remote GPU via [RunPod Serverless](https://www.runpod.io/serverless-gpu) —
+leave `RUNPOD_API_KEY` blank to keep using local subprocess processing.
+
+**Why this needed more than a config flag**: once processing happens on a
+different machine, PHP and Python can no longer share a local disk. Every
+piece of `python/worker.py` that assumed "the same filesystem PHP can
+see" needed a remote equivalent:
+
+| Local mode | Remote (RunPod) mode |
+|---|---|
+| PHP writes `config.json` to the job's local folder; Python reads it | PHP sends the same fields as the RunPod job's `input` (`JobService::buildJobConfig()` / `dispatchToRunPod()`) |
+| Python writes `status.json` locally via `StatusWriter`; PHP polls that file | Python POSTs the same JSON shape to `POST /api/worker/jobs/{id}/status` via `RemoteStatusWriter` — same interface, so **no stage script had to change** |
+| Local backgrounds folder is just `Path.iterdir()` | `runpod_handler.py` downloads each file from `GET /api/worker/backgrounds/{filename}` into a temp folder first, so `local_backgrounds.py::pick_images()` still just sees a local folder |
+| The rendered video is already at `storage/jobs/{id}/karaoke.mp4` | `runpod_handler.py` uploads it to `POST /api/worker/jobs/{id}/upload` before the job is allowed to report "completed" (see `before_completion` in `worker.py::run_pipeline()`) — otherwise the app could tell a user their video is ready before the file exists on Hostinger |
+
+All three `/api/worker/...` endpoints (`WorkerCallbackController`) are
+authenticated by a shared secret, not a session — every RunPod job carries
+`WORKER_API_SECRET` as part of its `input` and sends it back as an
+`X-Worker-Secret` header on every callback. Generate one with:
+
+```
+php -r "echo bin2hex(random_bytes(32));"
+```
+
+**Deploying the container**: RunPod builds directly from a GitHub repo
+(no local Docker needed) — connect your repo under RunPod's console
+(Settings → Connections → GitHub), then create a Serverless endpoint
+pointing at the `Dockerfile` in the repo root. Two settings matter beyond
+the defaults:
+
+- **Execution timeout**: raise this well past the default 10 minutes —
+  Malayalam songs alone took 30-50 minutes on CPU in testing; even with a
+  GPU's speedup, leave real margin (20-30+ minutes) rather than have a
+  slow job get killed mid-render.
+- RunPod doesn't auto-deploy on every commit to your default branch —
+  pushing a new commit updates what a *new release* would build, but you
+  need to actually cut a release for it to reach the live endpoint.
+
+PHP dispatches via RunPod's async `/run` operation (not `/runsync`, whose
+result window is far too short for these job lengths) — see
+[docs.runpod.io/serverless/endpoints/send-requests](https://docs.runpod.io/serverless/endpoints/send-requests)
+for the underlying API this wraps.

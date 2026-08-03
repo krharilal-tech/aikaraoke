@@ -7,6 +7,7 @@ use App\Controllers\AuthController;
 use App\Controllers\HomeController;
 use App\Controllers\JobController;
 use App\Controllers\SettingsController;
+use App\Controllers\WorkerCallbackController;
 use App\Core\Router;
 
 /** @var Router $router */
@@ -39,3 +40,10 @@ $router->get('/jobs/{id}/image/{filename}', [JobController::class, 'image']);
 $router->get('/jobs/{id}/video', [JobController::class, 'video']);
 $router->get('/jobs/{id}/download', [JobController::class, 'download']);
 $router->get('/api/jobs/{id}/status', [JobController::class, 'status']);
+
+// Called by the RunPod worker, not by a user's browser — authenticated via
+// a shared secret header instead of a session, see
+// WorkerCallbackController::requireWorkerSecret().
+$router->post('/api/worker/jobs/{id}/status', [WorkerCallbackController::class, 'status'], auth: false);
+$router->post('/api/worker/jobs/{id}/upload', [WorkerCallbackController::class, 'upload'], auth: false);
+$router->get('/api/worker/backgrounds/{filename}', [WorkerCallbackController::class, 'backgroundImage'], auth: false);

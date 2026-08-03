@@ -58,21 +58,24 @@ final class JobService
 
         Logger::info('Job created', ['youtube_url' => $youtubeUrl, 'keep_vocals' => $keepVocals], $jobId);
 
-        $this->spawnWorker($jobId);
+        $this->spawnWorker($jobId, $youtubeUrl, $keepVocals);
 
         return Job::find($jobId) ?? [];
     }
 
     /**
-     * Snapshot everything the Python worker needs (tool paths, model names,
-     * API keys) into the job directory at creation time. This is the only
-     * channel Python has into app configuration — it never touches MySQL or
-     * .env directly, keeping "PHP owns config/DB, Python only processes"
-     * strictly true.
+     * Everything the Python worker needs (tool paths, model names, API
+     * keys) — shared by writeConfigFile() (local subprocess mode, reads
+     * this back from config.json) and dispatchToRunPod() (remote mode,
+     * sends the same thing as the RunPod job's `input` instead). Local and
+     * remote each override a couple of fields afterward that only make
+     * sense for that mode (job_dir, local_backgrounds_path).
+     *
+     * @return array<string, mixed>
      */
-    private function writeConfigFile(int $jobId, string $youtubeUrl, bool $keepVocals): void
+    private function buildJobConfig(int $jobId, string $youtubeUrl, bool $keepVocals): array
     {
-        $config = [
+        return [
             'job_id' => $jobId,
             'youtube_url' => $youtubeUrl,
             'keep_vocals' => $keepVocals,
@@ -92,6 +95,21 @@ final class JobService
             'musixmatch_api_key' => env('MUSIXMATCH_API_KEY', ''),
             'genius_access_token' => env('GENIUS_ACCESS_TOKEN', ''),
         ];
+    }
+
+    /**
+     * Snapshot everything the Python worker needs into the job directory
+     * at creation time. This is the only channel Python has into app
+     * configuration in local subprocess mode — it never touches MySQL or
+     * .env directly, keeping "PHP owns config/DB, Python only processes"
+     * strictly true. (In RunPod mode, dispatchToRunPod() sends the
+     * equivalent as the job's `input` instead — this file still gets
+     * written either way since nothing reads config.json to decide which
+     * mode is active, but it's harmless/unused in RunPod mode.)
+     */
+    private function writeConfigFile(int $jobId, string $youtubeUrl, bool $keepVocals): void
+    {
+        $config = $this->buildJobConfig($jobId, $youtubeUrl, $keepVocals);
 
         file_put_contents(
             $this->jobDirectory($jobId) . '/config.json',
@@ -133,6 +151,32 @@ final class JobService
     {
         $path = $this->statusFilePath($jobId);
         file_put_contents($path, json_encode($status, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    }
+
+    /**
+     * Entry point for WorkerCallbackController's status webhook (RunPod
+     * mode) — the remote counterpart to a local worker writing
+     * status.json directly, which getStatus() below then reads. This
+     * writes the exact same file locally first (so getStatus() and
+     * everything downstream of it — the poll API, the log console — stay
+     * completely unaware of which mode produced it), then runs the same
+     * sync-into-DB and notify-if-terminal logic a local poll would.
+     *
+     * @param array<string, mixed> $status
+     */
+    public function applyRemoteStatus(int $jobId, array $status): void
+    {
+        $job = Job::find($jobId);
+
+        if ($job === null) {
+            return;
+        }
+
+        $this->writeStatusFile($jobId, $status);
+        $this->syncFromFileStatus($job, $status);
+
+        $job = Job::find($jobId) ?? $job;
+        $this->notifyIfTerminal($job);
     }
 
     /**
@@ -300,6 +344,52 @@ final class JobService
     }
 
     /**
+     * Called by WorkerCallbackController's upload endpoint once RunPod
+     * sends back the finished video — the actual bytes, as a real file
+     * upload, not through the JSON status channel applyRemoteStatus() uses.
+     *
+     * The "rendering_video" stage's own status push (handled by the normal
+     * syncVideo() path above) already recorded resolution/duration_sec —
+     * those describe the video's content, so they're still correct even
+     * though they arrived from a different machine — but its file_path
+     * pointed at a temp directory on RunPod's own (now-deleted) disk. This
+     * corrects just that field to where the file actually landed on
+     * Hostinger, creating the `videos` row instead if the status push
+     * somehow hasn't arrived yet.
+     */
+    public function saveUploadedVideo(int $jobId, string $uploadedTmpPath): void
+    {
+        $jobDir = $this->jobDirectory($jobId);
+
+        if (!is_dir($jobDir) && !mkdir($jobDir, 0775, true) && !is_dir($jobDir)) {
+            throw new RuntimeException("Could not create job directory: {$jobDir}");
+        }
+
+        $destination = $jobDir . '/karaoke.mp4';
+
+        if (!move_uploaded_file($uploadedTmpPath, $destination)) {
+            throw new RuntimeException('Failed to save the uploaded video.');
+        }
+
+        $fileSize = filesize($destination);
+        $existing = Video::forJob($jobId);
+
+        if ($existing !== null) {
+            Video::update((int) $existing['id'], [
+                'file_path' => $destination,
+                'file_size_bytes' => $fileSize !== false ? $fileSize : null,
+            ]);
+        } else {
+            Video::create([
+                'job_id' => $jobId,
+                'file_path' => $destination,
+                'resolution' => '1920x1080',
+                'file_size_bytes' => $fileSize !== false ? $fileSize : null,
+            ]);
+        }
+    }
+
+    /**
      * Sends the "your video is ready" / "your video failed" email exactly
      * once per job. Called both from the HTTP status-poll endpoint (so it
      * fires immediately while someone has the progress page open) and from
@@ -438,8 +528,14 @@ final class JobService
         }
     }
 
-    private function spawnWorker(int $jobId): void
+    private function spawnWorker(int $jobId, string $youtubeUrl, bool $keepVocals): void
     {
+        if ($this->runPodConfigured()) {
+            $this->dispatchToRunPod($jobId, $youtubeUrl, $keepVocals);
+
+            return;
+        }
+
         $pythonPath = Setting::get('python_path', 'python');
         $rootPath = Config::get('paths.root');
         $workerScript = Config::get('paths.python') . '/worker.py';
@@ -490,5 +586,92 @@ final class JobService
         proc_close($process);
 
         Logger::info('Python worker spawned', ['job_id' => $jobId], $jobId, Logger::SOURCE_PHP);
+    }
+
+    private function runPodConfigured(): bool
+    {
+        return env('RUNPOD_API_KEY', '') !== '' && env('RUNPOD_ENDPOINT_ID', '') !== '';
+    }
+
+    /**
+     * Remote-GPU counterpart to the local proc_open() path above: instead
+     * of spawning python/worker.py as a subprocess on this machine, kicks
+     * off python/runpod_handler.py running on RunPod's infrastructure via
+     * their async job API (`/run` — not `/runsync`, since jobs here can
+     * run for close to an hour, far past runsync's ~5-minute result
+     * window). RunPod calls back to WorkerCallbackController as the job
+     * progresses and once it's done — see docs/CONFIGURATION.md's RunPod
+     * section for the full request/response shape.
+     */
+    private function dispatchToRunPod(int $jobId, string $youtubeUrl, bool $keepVocals): void
+    {
+        $config = $this->buildJobConfig($jobId, $youtubeUrl, $keepVocals);
+
+        // Neither of these means anything on a remote machine — job_dir is
+        // a local path on RunPod's own (ephemeral) disk that
+        // runpod_handler.py creates itself, and local backgrounds get
+        // fetched by filename over HTTP instead of read from a shared
+        // folder (see _download_local_backgrounds() in runpod_handler.py).
+        unset($config['job_dir'], $config['local_backgrounds_path']);
+
+        if ($config['background_source'] === 'local') {
+            $config['local_background_filenames'] = $this->listLocalBackgroundFilenames();
+        }
+
+        $config['callback_base_url'] = base_url();
+        $config['worker_secret'] = env('WORKER_API_SECRET', '');
+
+        $url = 'https://api.runpod.ai/v2/' . env('RUNPOD_ENDPOINT_ID') . '/run';
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . env('RUNPOD_API_KEY'),
+                'Content-Type: application/json',
+            ],
+            CURLOPT_POSTFIELDS => json_encode(['input' => $config], JSON_UNESCAPED_SLASHES),
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 15,
+        ]);
+
+        $response = curl_exec($ch);
+        $httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false || $httpStatus < 200 || $httpStatus >= 300) {
+            Logger::error('Failed to dispatch job to RunPod', [
+                'job_id' => $jobId,
+                'http_status' => $httpStatus,
+                'curl_error' => $curlError,
+            ], $jobId, Logger::SOURCE_PHP);
+
+            throw new RuntimeException('Could not start the processing worker (RunPod dispatch failed).');
+        }
+
+        Logger::info('Job dispatched to RunPod', ['job_id' => $jobId], $jobId, Logger::SOURCE_PHP);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function listLocalBackgroundFilenames(): array
+    {
+        $folder = $this->resolvePath(Setting::get('local_backgrounds_path', 'storage/backgrounds'));
+
+        if (!is_dir($folder)) {
+            return [];
+        }
+
+        $filenames = [];
+
+        foreach (scandir($folder) as $entry) {
+            if (preg_match('/\.(png|jpe?g|webp)$/i', $entry) === 1) {
+                $filenames[] = $entry;
+            }
+        }
+
+        return $filenames;
     }
 }
