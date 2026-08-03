@@ -596,7 +596,7 @@ final class JobService
     /**
      * Remote-GPU counterpart to the local proc_open() path above: instead
      * of spawning python/worker.py as a subprocess on this machine, kicks
-     * off python/handler.py running on RunPod's infrastructure via
+     * off handler.py running on RunPod's infrastructure via
      * their async job API (`/run` — not `/runsync`, since jobs here can
      * run for close to an hour, far past runsync's ~5-minute result
      * window). RunPod calls back to WorkerCallbackController as the job

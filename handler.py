@@ -1,5 +1,11 @@
 """
-RunPod Serverless entry point — the remote-GPU counterpart to worker.py.
+RunPod Serverless entry point — the remote-GPU counterpart to python/worker.py.
+
+Lives at the repo root (not under python/) specifically because RunPod's
+GitHub-import pre-flight check for runpod.serverless.start() only scans
+top-level files, not nested folders — everything it actually does is a
+thin shim that puts python/ on sys.path and defers to that existing
+package, which is otherwise untouched.
 
 worker.py is invoked locally by PHP as a subprocess and talks back to PHP
 through local files (config.json in, status.json out). This does the same
@@ -18,13 +24,12 @@ RunPod's disk is wiped after the job ends and PHP can't reach into it.
 
 from __future__ import annotations
 
-import shutil
 import sys
 import tempfile
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent / "python"))
 
 import requests
 import runpod  # noqa: E402

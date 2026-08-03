@@ -1,6 +1,6 @@
-# The RunPod image only needs python/ — everything else here is the PHP
-# app (stays on Hostinger) or local dev/VCS cruft that would just slow
-# the build down.
+# The RunPod image only needs handler.py + python/ — everything else here
+# is the PHP app (stays on Hostinger) or local dev/VCS cruft that would
+# just slow the build down.
 .git
 .gitignore
 app/

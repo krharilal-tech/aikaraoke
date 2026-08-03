@@ -13,7 +13,7 @@ use App\Models\Setting;
 use App\Services\JobService;
 
 /**
- * Endpoints the RunPod worker (python/handler.py) calls back into —
+ * Endpoints the RunPod worker (handler.py) calls back into —
  * never used by a logged-in user's browser, so these don't go through
  * Auth::check()/session cookies at all. Authenticated instead by a shared
  * secret (WORKER_API_SECRET in .env) every RunPod job carries as part of

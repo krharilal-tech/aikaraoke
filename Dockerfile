@@ -1,8 +1,12 @@
-# RunPod Serverless GPU worker image — runs python/handler.py.
-# Only the python/ directory matters here; the PHP app (app/, public/,
-# vendor/) never runs on this side, it stays on Hostinger. Deployed via
-# RunPod's GitHub integration (docs.runpod.io/serverless/workers/github-integration),
-# which builds this on RunPod's own infrastructure — no local Docker needed.
+# RunPod Serverless GPU worker image — runs handler.py.
+# handler.py itself lives at the repo root (RunPod's GitHub-import
+# pre-flight check for runpod.serverless.start() only scans top-level
+# files) and is a thin shim over the python/ package, which is otherwise
+# unchanged and still used as-is by the local WAMP/Ubuntu subprocess path
+# too. The PHP app (app/, public/, vendor/) never runs on this side, it
+# stays on Hostinger. Deployed via RunPod's GitHub integration
+# (docs.runpod.io/serverless/workers/github-integration), which builds
+# this on RunPod's own infrastructure — no local Docker needed.
 
 FROM runpod/base:0.6.3-cuda11.8.0
 
@@ -17,7 +21,7 @@ RUN apt-get update \
     && ffmpeg -version | grep -q -- '--enable-libass' \
     || (echo "FFmpeg build is missing libass support" && exit 1)
 
-COPY python/requirements.txt /app/requirements.txt
+COPY python/requirements.txt /app/python/requirements.txt
 
 # CUDA-enabled torch/torchaudio, matching this base image's CUDA 11.8 —
 # installed *before* requirements.txt on purpose, exactly like
@@ -26,8 +30,11 @@ COPY python/requirements.txt /app/requirements.txt
 # than pip resolving some other (possibly CPU-only or mismatched-CUDA)
 # wheel from PyPI on its own.
 RUN pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cu118
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r python/requirements.txt
 
-COPY python/ /app/
+# Preserved as a real python/ subdirectory (not flattened into /app) —
+# handler.py's sys.path.insert(0, .../"python") depends on this exact layout.
+COPY python/ /app/python/
+COPY handler.py /app/handler.py
 
 CMD ["python", "-u", "handler.py"]
