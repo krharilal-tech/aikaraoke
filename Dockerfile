@@ -12,6 +12,17 @@ FROM runpod/base:0.6.3-cuda11.8.0
 
 WORKDIR /app
 
+# runpod/base doesn't put a plain `python`/`python3` on PATH by default —
+# only pip (which has its own shebang straight to python3.11, which is why
+# the `pip install` steps below work fine even without this) — but our
+# CMD's bare `python` needs one, and without it the container starts and
+# immediately dies with "exited with exit code 126" (found something
+# named python, couldn't actually execute it) rather than failing the
+# build, which is what made this so non-obvious to track down. Matches
+# RunPod's own worker-template Dockerfile exactly.
+RUN ln -sf $(which python3.11) /usr/local/bin/python && \
+    ln -sf $(which python3.11) /usr/local/bin/python3
+
 # Same libass check as docs/DEPLOYMENT_UBUNTU.md flags for the plain VPS
 # path — the karaoke subtitle burn-in needs it, and not every distro
 # ffmpeg package ships it by default.
