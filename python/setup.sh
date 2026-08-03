@@ -16,10 +16,14 @@ python3 -m venv venv
 echo "Upgrading pip ..."
 ./venv/bin/python -m pip install --upgrade pip
 
-echo "Installing CPU-only PyTorch (pass a CUDA index URL instead if you have a supported NVIDIA GPU) ..."
-./venv/bin/pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-
-echo "Installing remaining dependencies from requirements.txt (demucs + whisperx + yt-dlp + openai, can take a while) ..."
+# requirements.txt pins an exact torch version (confirmed compatible with
+# whisperx/pyannote-audio's VAD checkpoint loading — a version mismatch
+# here previously broke that on RunPod) rather than leaving it to a
+# separate pre-install step. On Linux, PyPI's default torch wheel bundles
+# its own CUDA runtime regardless of whether this machine has a GPU, so a
+# CPU-only Ubuntu deployment will pull a larger download than strictly
+# necessary — harmless, just not the smallest possible install.
+echo "Installing dependencies from requirements.txt (torch + demucs + whisperx + yt-dlp + openai, can take a while) ..."
 ./venv/bin/pip install -r requirements.txt
 
 echo

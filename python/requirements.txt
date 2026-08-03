@@ -18,12 +18,29 @@ openai>=1.40.0
 # torch/demucs at import time ("ModuleNotFoundError: No module named 'numpy'").
 numpy>=1.26.0
 demucs>=4.0.1
-torch>=2.2.0
-torchaudio>=2.2.0
+
+# torch/torchaudio and the pyannote/lightning/omegaconf stack below are all
+# pinned to exact versions, not just floors — confirmed together (in a
+# from-scratch isolated venv, matching this app's real WhisperX call
+# exactly) to load pyannote.audio's VAD checkpoint cleanly under PyTorch
+# 2.6+'s weights_only=True default. Loosening any one of these is what
+# broke this before: pyannote-audio pulls in torchcodec, which pins torch
+# tightly enough that pip's resolver will silently swap in a different,
+# unverified torch build to satisfy it if torch itself isn't pinned here
+# too — see services/whisperx_engine.py's
+# _allow_legacy_torch_checkpoint_loading() for the weights_only fix itself,
+# and the Dockerfile for why torch is no longer installed as a separate
+# step ahead of this file.
+torch==2.8.0
+torchaudio==2.8.0
+pyannote-audio==4.0.7
+pytorch-lightning==2.6.5
+lightning==2.6.5
+omegaconf==2.3.1
 
 # --- Lyric transcription + forced alignment (Extracting Lyrics /
 #     Synchronizing Lyrics stages, used when no lyrics DB has a match) ---
-whisperx>=3.1.1
+whisperx==3.8.6
 
 # transformers is a whisperx transitive dependency already, but is pinned
 # explicitly here because services/malayalam_asr.py imports it directly —

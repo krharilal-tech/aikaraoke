@@ -34,13 +34,22 @@ RUN apt-get update \
 
 COPY python/requirements.txt /app/python/requirements.txt
 
-# CUDA-enabled torch/torchaudio, matching this base image's CUDA 11.8 —
-# installed *before* requirements.txt on purpose, exactly like
-# python/setup.sh does for the CPU build locally: requirements.txt's own
-# "torch>=2.2.0" line is then already satisfied and left alone, rather
-# than pip resolving some other (possibly CPU-only or mismatched-CUDA)
-# wheel from PyPI on its own.
-RUN pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/cu118
+# torch/torchaudio are installed as part of this single requirements.txt
+# pass, pinned to exact versions there — NOT via a separate pre-install
+# step from the CUDA-specific wheel index like this used to do. That
+# separate step (installing torch==2.7.1+cu118 first, on the assumption
+# that requirements.txt's own "torch>=2.2.0" would then already be
+# satisfied and left alone) turned out to be wrong: pyannote-audio
+# (a whisperx dependency) pulls in torchcodec, which pins a specific torch
+# version tightly enough that pip's resolver silently reinstalled a
+# *different* torch during the requirements.txt pass anyway, discarding
+# the CUDA-11.8 wheel this step thought it had locked in — confirmed by
+# reproducing the exact two-step install in an isolated venv. Standard
+# Linux PyPI torch wheels bundle their own CUDA runtime (nvidia-cu12
+# packages) regardless of the host image's own CUDA toolkit version, so
+# letting requirements.txt resolve torch on its own — pinned to the exact
+# version confirmed compatible with pyannote-audio's VAD checkpoint
+# loading — gets GPU support without fighting pip's resolver.
 RUN pip install --no-cache-dir -r python/requirements.txt
 
 # Preserved as a real python/ subdirectory (not flattened into /app) —

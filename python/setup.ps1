@@ -18,10 +18,11 @@ python -m venv venv
 Write-Host "Upgrading pip ..."
 & .\venv\Scripts\python.exe -m pip install --upgrade pip
 
-Write-Host "Installing CPU-only PyTorch (add --index-url for a CUDA build instead if you have a supported NVIDIA GPU) ..."
-& .\venv\Scripts\pip.exe install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-
-Write-Host "Installing remaining dependencies from requirements.txt (demucs + whisperx + yt-dlp + openai, can take a while) ..."
+# requirements.txt pins an exact torch version (confirmed compatible with
+# whisperx/pyannote-audio's VAD checkpoint loading — a version mismatch
+# here previously broke that on RunPod) rather than leaving it to a
+# separate pre-install step.
+Write-Host "Installing dependencies from requirements.txt (torch + demucs + whisperx + yt-dlp + openai, can take a while) ..."
 & .\venv\Scripts\pip.exe install -r requirements.txt
 
 Write-Host ""
