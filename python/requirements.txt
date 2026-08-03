@@ -1,0 +1,33 @@
+# AI Karaoke Maker — Python worker dependencies.
+# Install into python/venv (see python/README.md):
+#   python -m venv venv
+#   venv\Scripts\pip install -r requirements.txt      (Windows)
+#   venv/bin/pip install -r requirements.txt           (Linux/Ubuntu)
+
+# --- YouTube download (Downloading stage) ---
+yt-dlp>=2024.8.6
+
+# --- HTTP calls: LRCLIB/Musixmatch/Genius lookups, OpenAI API (Extracting
+#     Lyrics / Generating AI Backgrounds stages) ---
+requests>=2.32.0
+openai>=1.40.0
+
+# --- Vocal/instrumental separation (Removing Vocals stage) ---
+# numpy is pinned explicitly: on some platforms pip's resolver installs
+# demucs without pulling in numpy as a transitive dependency, which breaks
+# torch/demucs at import time ("ModuleNotFoundError: No module named 'numpy'").
+numpy>=1.26.0
+demucs>=4.0.1
+torch>=2.2.0
+torchaudio>=2.2.0
+
+# --- Lyric transcription + forced alignment (Extracting Lyrics /
+#     Synchronizing Lyrics stages, used when no lyrics DB has a match) ---
+whisperx>=3.1.1
+
+# transformers is a whisperx transitive dependency already, but is pinned
+# explicitly here because services/malayalam_asr.py imports it directly —
+# generic multilingual Whisper cannot render correct Malayalam script (see
+# docs/TROUBLESHOOTING.md), so Malayalam transcription loads a
+# Malayalam-finetuned checkpoint via transformers directly instead.
+transformers>=4.40.0

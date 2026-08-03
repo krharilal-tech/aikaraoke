@@ -1,0 +1,337 @@
+/* ==========================================================================
+   AI Karaoke Maker — Saffron & Marigold theme
+   Warm light theme: saffron orange + marigold gold on a warm paper ground,
+   with a small tulsi-green accent for "done" states.
+   ========================================================================== */
+
+:root {
+  --ak-paper: #fffdf9;
+  --ak-surface: #fff3e6;
+  --ak-surface-2: #fce7d1;
+  --ak-line: #f0dec4;
+  --ak-ink: #2b1b0e;
+  --ak-muted: #8a7a6b;
+  --ak-saffron: #f2650c;
+  --ak-saffron-strong: #c24e00;
+  --ak-marigold: #d9a200;
+  --ak-marigold-strong: #a67c00;
+  --ak-tulsi: #0f7a5c;
+  --ak-tint: #fdebd8;
+  --ak-tint-line: #f6d9b6;
+  --ak-radius: 1rem;
+}
+
+* {
+  scrollbar-color: var(--ak-marigold) transparent;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(1100px 550px at 12% -12%, rgba(242, 101, 12, 0.10), transparent 60%),
+    radial-gradient(900px 480px at 105% 8%, rgba(217, 162, 0, 0.12), transparent 60%),
+    radial-gradient(800px 620px at 50% 115%, rgba(15, 122, 92, 0.07), transparent 60%),
+    var(--ak-paper);
+  color: var(--ak-ink);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-main {
+  flex: 1 0 auto;
+}
+
+/* ---- Navbar --------------------------------------------------------- */
+.app-navbar {
+  background: rgba(255, 253, 249, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--ak-line);
+}
+
+.brand-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 0.65rem;
+  background: linear-gradient(135deg, var(--ak-saffron), var(--ak-marigold));
+  color: #fff;
+  font-size: 1.05rem;
+}
+
+.brand-text {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--ak-ink);
+}
+
+.app-navbar .nav-link {
+  color: var(--ak-muted);
+  font-weight: 500;
+}
+
+.app-navbar .nav-link:hover,
+.app-navbar .nav-link.active {
+  color: var(--ak-saffron-strong);
+}
+
+/* ---- Cards ------------------------------------------------------------ */
+.glass-card {
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--ak-line);
+  border-radius: var(--ak-radius);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 10px 30px rgba(178, 108, 20, 0.08);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.glass-card:hover {
+  border-color: var(--ak-tint-line);
+}
+
+.hero-section {
+  padding: 5.5rem 0 4rem;
+}
+
+.hero-title {
+  font-weight: 800;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.15;
+  background: linear-gradient(120deg, var(--ak-ink) 35%, var(--ak-saffron));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-subtitle {
+  color: var(--ak-muted);
+  font-size: 1.1rem;
+  max-width: 640px;
+}
+
+.badge-tint {
+  color: var(--ak-saffron-strong);
+  background: var(--ak-tint);
+  border: 1px solid var(--ak-tint-line);
+}
+
+.gradient-btn {
+  background: linear-gradient(135deg, var(--ak-saffron), var(--ak-marigold));
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  padding: 0.85rem 1.75rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  box-shadow: 0 10px 30px rgba(242, 101, 12, 0.28);
+}
+
+.gradient-btn:hover,
+.gradient-btn:focus {
+  transform: translateY(-2px);
+  filter: brightness(1.05);
+  color: #fff;
+  box-shadow: 0 14px 36px rgba(242, 101, 12, 0.36);
+}
+
+.gradient-btn:disabled {
+  opacity: 0.6;
+  transform: none;
+}
+
+.form-control-ak {
+  background: #fffefc;
+  border: 1px solid var(--ak-line);
+  color: var(--ak-ink);
+  border-radius: 0.75rem;
+  padding: 0.85rem 1.1rem;
+}
+
+.form-control-ak:focus {
+  background: #fff;
+  border-color: var(--ak-saffron);
+  color: var(--ak-ink);
+  box-shadow: 0 0 0 0.2rem rgba(242, 101, 12, 0.16);
+}
+
+.form-control-ak::placeholder {
+  color: var(--ak-muted);
+}
+
+/* ---- Steps / feature strip -------------------------------------------- */
+.step-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(242, 101, 12, 0.14), rgba(217, 162, 0, 0.16));
+  color: var(--ak-saffron-strong);
+  font-size: 1.3rem;
+}
+
+/* ---- Progress page ----------------------------------------------------- */
+.stage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.stage-item {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--ak-line);
+  opacity: 0.55;
+  transition: opacity 0.3s ease;
+}
+
+.stage-item:last-child {
+  border-bottom: none;
+}
+
+.stage-item.active,
+.stage-item.done {
+  opacity: 1;
+}
+
+.stage-dot {
+  width: 2.1rem;
+  height: 2.1rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ak-surface);
+  border: 1px solid var(--ak-line);
+  color: var(--ak-muted);
+  font-size: 0.9rem;
+}
+
+.stage-item.done .stage-dot {
+  background: linear-gradient(135deg, var(--ak-tulsi), #0a5a43);
+  border-color: transparent;
+  color: #fff;
+}
+
+.stage-item.active .stage-dot {
+  background: linear-gradient(135deg, var(--ak-saffron), var(--ak-marigold));
+  border-color: transparent;
+  color: #fff;
+  animation: pulse-glow 1.6s ease-in-out infinite;
+}
+
+.stage-item.failed .stage-dot {
+  background: #d33a2c;
+  border-color: transparent;
+  color: #fff;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(242, 101, 12, 0.35); }
+  50% { box-shadow: 0 0 0 8px rgba(242, 101, 12, 0); }
+}
+
+.progress-ak {
+  height: 0.65rem;
+  border-radius: 999px;
+  background: var(--ak-surface);
+  border: 1px solid var(--ak-line);
+  overflow: hidden;
+}
+
+.progress-ak .progress-bar {
+  background: linear-gradient(90deg, var(--ak-saffron), var(--ak-marigold));
+}
+
+.log-console {
+  background: #201207;
+  border: 1px solid #3a230f;
+  border-radius: 0.75rem;
+  padding: 0.9rem 1rem;
+  font-family: 'Cascadia Code', Consolas, monospace;
+  font-size: 0.8rem;
+  color: #f3d9a8;
+  max-height: 260px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+/* ---- Background selection cards ---------------------------------------- */
+.bg-choice-card {
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+}
+
+.bg-choice-card img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease;
+}
+
+.bg-choice-card:hover img {
+  transform: scale(1.04);
+}
+
+.bg-choice-card.selected {
+  border-color: var(--ak-saffron);
+  box-shadow: 0 0 0 3px rgba(242, 101, 12, 0.30);
+}
+
+.bg-choice-card .check-badge {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--ak-saffron);
+  color: #fff;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.bg-choice-card.selected .check-badge {
+  display: flex;
+}
+
+/* ---- Footer -------------------------------------------------------- */
+.app-footer {
+  border-top: 1px solid var(--ak-line);
+  margin-top: 3rem;
+}
+
+/* ---- Utility -------------------------------------------------------- */
+.text-gradient {
+  background: linear-gradient(120deg, var(--ak-saffron-strong), var(--ak-marigold-strong));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.tint-box {
+  background: var(--ak-tint);
+  border: 1px solid var(--ak-tint-line);
+}
+
+video.karaoke-preview {
+  width: 100%;
+  border-radius: var(--ak-radius);
+  background: #000;
+  box-shadow: 0 12px 40px rgba(43, 27, 14, 0.25);
+}
+
+@media (max-width: 767.98px) {
+  .hero-section { padding: 3rem 0 2.5rem; }
+}

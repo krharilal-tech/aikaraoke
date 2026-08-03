@@ -1,0 +1,9 @@
+# Allows the app to be served from the project root (e.g. WAMP's default
+# www folder) by transparently forwarding every request into /public.
+# For production, prefer pointing the Apache DocumentRoot directly at
+# /public instead (see docs/DEPLOYMENT_UBUNTU.md) and remove this file.
+
+RewriteEngine On
+
+RewriteCond %{REQUEST_URI} !^/aikaraoke/public/
+RewriteRule ^(.*)$ public/$1 [L]

@@ -1,0 +1,22 @@
+{
+    "name": "aikaraoke/ai-karaoke-maker",
+    "description": "AI Karaoke Video Maker - converts a YouTube music video into a professional karaoke video.",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.1",
+        "phpmailer/phpmailer": "^7.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/"
+        },
+        "files": [
+            "app/helpers.php"
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}

@@ -1,0 +1,494 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Core\Config;
+use App\Core\Logger;
+use App\Models\Background;
+use App\Models\Credit;
+use App\Models\Job;
+use App\Models\LogEntry;
+use App\Models\Lyrics;
+use App\Models\Setting;
+use App\Models\User;
+use App\Models\Video;
+use RuntimeException;
+
+/**
+ * Owns the job lifecycle: creation, spawning the Python worker, and
+ * reconciling the `jobs` table with the JSON status file the worker writes.
+ */
+final class JobService
+{
+    public function create(string $youtubeUrl, bool $keepVocals, ?int $userId = null): array
+    {
+        $jobId = (int) Job::create([
+            'user_id' => $userId,
+            'youtube_url' => $youtubeUrl,
+            'youtube_video_id' => Job::extractYoutubeId($youtubeUrl),
+            'keep_vocals' => $keepVocals ? 1 : 0,
+            'state' => Job::STATE_QUEUED,
+            'progress_percent' => 0,
+        ]);
+
+        $jobDir = $this->jobDirectory($jobId);
+
+        if (!is_dir($jobDir) && !mkdir($jobDir, 0775, true) && !is_dir($jobDir)) {
+            throw new RuntimeException("Could not create job directory: {$jobDir}");
+        }
+
+        $this->writeStatusFile($jobId, [
+            'job_id' => $jobId,
+            'state' => Job::STATE_QUEUED,
+            'stage_label' => 'Queued',
+            'progress_percent' => 0,
+            'eta_seconds' => null,
+            'message' => 'Job created, waiting for the worker to start.',
+            'logs' => [],
+            'error' => null,
+            'metadata' => null,
+            'updated_at' => gmdate('c'),
+        ]);
+
+        Job::update($jobId, ['storage_path' => $jobDir]);
+
+        $this->writeConfigFile($jobId, $youtubeUrl, $keepVocals);
+
+        Logger::info('Job created', ['youtube_url' => $youtubeUrl, 'keep_vocals' => $keepVocals], $jobId);
+
+        $this->spawnWorker($jobId);
+
+        return Job::find($jobId) ?? [];
+    }
+
+    /**
+     * Snapshot everything the Python worker needs (tool paths, model names,
+     * API keys) into the job directory at creation time. This is the only
+     * channel Python has into app configuration — it never touches MySQL or
+     * .env directly, keeping "PHP owns config/DB, Python only processes"
+     * strictly true.
+     */
+    private function writeConfigFile(int $jobId, string $youtubeUrl, bool $keepVocals): void
+    {
+        $config = [
+            'job_id' => $jobId,
+            'youtube_url' => $youtubeUrl,
+            'keep_vocals' => $keepVocals,
+            'job_dir' => $this->jobDirectory($jobId),
+            'max_video_length_seconds' => (int) Setting::get('max_video_length_seconds', '600'),
+            'ffmpeg_path' => Setting::get('ffmpeg_path', 'ffmpeg'),
+            'ffprobe_path' => Setting::get('ffprobe_path', 'ffprobe'),
+            'yt_dlp_path' => Setting::get('yt_dlp_path', 'yt-dlp'),
+            'demucs_model' => Setting::get('demucs_model', 'htdemucs'),
+            'whisperx_model' => Setting::get('whisperx_model', 'medium'),
+            'transcription_language' => Setting::get('transcription_language', 'auto'),
+            'image_model' => Setting::get('image_model', 'gpt-image-1'),
+            'prompt_model' => Setting::get('prompt_model', 'gpt-4o-mini'),
+            'background_source' => Setting::get('background_source', 'openai'),
+            'local_backgrounds_path' => $this->resolvePath(Setting::get('local_backgrounds_path', 'storage/backgrounds')),
+            'openai_api_key' => env('OPENAI_API_KEY', ''),
+            'musixmatch_api_key' => env('MUSIXMATCH_API_KEY', ''),
+            'genius_access_token' => env('GENIUS_ACCESS_TOKEN', ''),
+        ];
+
+        file_put_contents(
+            $this->jobDirectory($jobId) . '/config.json',
+            json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
+            LOCK_EX
+        );
+    }
+
+    /**
+     * Settings store paths like "storage/backgrounds" relative to the
+     * project root, but the Python worker runs with no notion of "project
+     * root" beyond what we snapshot into config.json — so relative paths
+     * are resolved to absolute here, once, in the one place that already
+     * knows where the root is. An already-absolute value (e.g. an admin
+     * pointing "Local Backgrounds Folder" at a drive outside the project)
+     * is passed through untouched.
+     */
+    private function resolvePath(string $path): string
+    {
+        $isAbsolute = preg_match('#^([A-Za-z]:[\\\\/]|/)#', $path) === 1;
+
+        return $isAbsolute ? $path : Config::get('paths.root') . '/' . $path;
+    }
+
+    public function jobDirectory(int $jobId): string
+    {
+        return Config::get('paths.jobs') . '/' . $jobId;
+    }
+
+    public function statusFilePath(int $jobId): string
+    {
+        return $this->jobDirectory($jobId) . '/status.json';
+    }
+
+    /**
+     * @param array<string, mixed> $status
+     */
+    public function writeStatusFile(int $jobId, array $status): void
+    {
+        $path = $this->statusFilePath($jobId);
+        file_put_contents($path, json_encode($status, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    }
+
+    /**
+     * Read the JSON status file the Python worker maintains and mirror any
+     * changes into the `jobs` table. Returns the merged view used by the
+     * status-poll API (DB row + live status file content).
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getStatus(int $jobId): ?array
+    {
+        $job = Job::find($jobId);
+
+        if ($job === null) {
+            return null;
+        }
+
+        $statusPath = $this->statusFilePath($jobId);
+        $fileStatus = null;
+
+        if (is_file($statusPath)) {
+            $raw = file_get_contents($statusPath);
+            $decoded = json_decode((string) $raw, true);
+            $fileStatus = is_array($decoded) ? $decoded : null;
+        }
+
+        if ($fileStatus !== null) {
+            $this->syncFromFileStatus($job, $fileStatus);
+            $job = Job::find($jobId) ?? $job;
+            $this->notifyIfTerminal($job);
+        }
+
+        $backgrounds = array_map(
+            static fn (array $bg): array => [
+                'id' => (int) $bg['id'],
+                'image_url' => base_url('jobs/' . $jobId . '/image/' . basename((string) $bg['image_path'])),
+                'is_selected' => (bool) $bg['is_selected'],
+            ],
+            Background::forJob($jobId)
+        );
+
+        $video = Video::forJob($jobId);
+        $videoInfo = $video === null ? null : [
+            'stream_url' => base_url('jobs/' . $jobId . '/video'),
+            'download_url' => base_url('jobs/' . $jobId . '/download'),
+            'duration_sec' => $video['duration_sec'] !== null ? (int) $video['duration_sec'] : null,
+            'resolution' => $video['resolution'],
+            'file_size_bytes' => $video['file_size_bytes'] !== null ? (int) $video['file_size_bytes'] : null,
+        ];
+
+        return [
+            'job_id' => $jobId,
+            'state' => $job['state'],
+            'progress_percent' => (int) $job['progress_percent'],
+            'eta_seconds' => $job['eta_seconds'] !== null ? (int) $job['eta_seconds'] : null,
+            'error_message' => $job['error_message'],
+            'title' => $job['title'],
+            'channel' => $job['channel'],
+            'thumbnail_url' => $job['thumbnail_url'],
+            'duration_sec' => $job['duration_sec'] !== null ? (int) $job['duration_sec'] : null,
+            'message' => $fileStatus['message'] ?? null,
+            'logs' => $fileStatus['logs'] ?? [],
+            'stages' => Job::pipelineStages(),
+            'backgrounds' => $backgrounds,
+            'video' => $videoInfo,
+            'expired' => $job['expired_at'] !== null,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $job
+     * @param array<string, mixed> $fileStatus
+     */
+    private function syncFromFileStatus(array $job, array $fileStatus): void
+    {
+        $this->syncPythonLogs((int) $job['id'], $fileStatus['logs'] ?? []);
+
+        $updates = [];
+
+        if (isset($fileStatus['state']) && $fileStatus['state'] !== $job['state']) {
+            $updates['state'] = $fileStatus['state'];
+
+            // Refund the credit this job consumed on submission — this
+            // fires once per job (only on the actual queued/whatever ->
+            // failed transition, guarded again inside refundForJob() itself
+            // against a second refund if this method somehow runs twice for
+            // the same transition). Deliberately unconditional: today there
+            // is no reliable way to tell "our bug" apart from "bad input"
+            // failures this early in the stage pipeline, so every failure
+            // refunds rather than risk charging a user for something that
+            // wasn't their fault.
+            if ($fileStatus['state'] === Job::STATE_FAILED && $job['user_id'] !== null) {
+                Credit::refundForJob((int) $job['user_id'], (int) $job['id']);
+            }
+        }
+
+        if (isset($fileStatus['progress_percent']) && (int) $fileStatus['progress_percent'] !== (int) $job['progress_percent']) {
+            $updates['progress_percent'] = (int) $fileStatus['progress_percent'];
+        }
+
+        if (array_key_exists('eta_seconds', $fileStatus)) {
+            $newEtaSeconds = $fileStatus['eta_seconds'] !== null ? (int) $fileStatus['eta_seconds'] : null;
+
+            // Guard against the "unconditional" version of this that used
+            // to be here: writing it on every poll regardless of whether it
+            // actually changed touched `updated_at` (ON UPDATE
+            // CURRENT_TIMESTAMP) on every single sync — which quietly broke
+            // anything using that column to mean "when did this job last
+            // meaningfully change" (e.g. notifyIfTerminal()'s bookkeeping).
+            if ($newEtaSeconds !== ($job['eta_seconds'] !== null ? (int) $job['eta_seconds'] : null)) {
+                $updates['eta_seconds'] = $newEtaSeconds;
+            }
+        }
+
+        if (array_key_exists('error', $fileStatus)) {
+            // Sync in both directions: set a new error, but also *clear* a
+            // stale one — e.g. a job that failed once, got resumed (see
+            // resume_job.py), and later succeeded would otherwise keep
+            // showing its old error message forever, since nothing before
+            // this explicitly cleared it once the retry succeeded.
+            $newErrorMessage = $fileStatus['error'] !== null && $fileStatus['error'] !== ''
+                ? (string) $fileStatus['error']
+                : null;
+
+            if ($newErrorMessage !== $job['error_message']) {
+                $updates['error_message'] = $newErrorMessage;
+            }
+        }
+
+        $metadata = $fileStatus['metadata'] ?? null;
+
+        if (is_array($metadata)) {
+            foreach (['title', 'channel', 'thumbnail_url'] as $field) {
+                if (!empty($metadata[$field]) && $metadata[$field] !== $job[$field]) {
+                    $updates[$field] = (string) $metadata[$field];
+                }
+            }
+
+            if (!empty($metadata['duration_sec']) && (int) $metadata['duration_sec'] !== (int) $job['duration_sec']) {
+                $updates['duration_sec'] = (int) $metadata['duration_sec'];
+            }
+        }
+
+        if ($updates !== []) {
+            Job::update((int) $job['id'], $updates);
+        }
+
+        $lyrics = $fileStatus['lyrics'] ?? null;
+
+        if (is_array($lyrics)) {
+            $this->syncLyrics((int) $job['id'], $lyrics);
+        }
+
+        $backgrounds = $fileStatus['backgrounds'] ?? null;
+
+        if (is_array($backgrounds) && $backgrounds !== []) {
+            $this->syncBackgrounds((int) $job['id'], $backgrounds);
+        }
+
+        $video = $fileStatus['video'] ?? null;
+
+        if (is_array($video)) {
+            $this->syncVideo((int) $job['id'], $video);
+        }
+    }
+
+    /**
+     * Sends the "your video is ready" / "your video failed" email exactly
+     * once per job. Called both from the HTTP status-poll endpoint (so it
+     * fires immediately while someone has the progress page open) and from
+     * bin/sync-jobs.php (a cron job — see docs/CONFIGURATION.md — so it
+     * still fires if nobody's browser is polling, which is the entire
+     * point of "we'll email you, you can close this tab").
+     *
+     * Only jobs created after this feature shipped are eligible — see the
+     * one-time backfill in database/migrations/004_notifications_and_cleanup.sql,
+     * which stamps every already-terminal job as notified so they don't all
+     * suddenly email their owners the moment SMTP gets configured.
+     *
+     * @param array<string, mixed> $job
+     */
+    private function notifyIfTerminal(array $job): void
+    {
+        $isTerminal = in_array($job['state'], [Job::STATE_COMPLETED, Job::STATE_FAILED], true);
+
+        if (!$isTerminal || $job['notified_at'] !== null || $job['user_id'] === null) {
+            return;
+        }
+
+        $user = User::find((int) $job['user_id']);
+
+        if ($user === null) {
+            return;
+        }
+
+        $jobUrl = base_url('jobs/' . $job['id']);
+        $title = $job['title'] ?? ('Job #' . $job['id']);
+        $name = $user['name'] ?? 'there';
+
+        if ($job['state'] === Job::STATE_COMPLETED) {
+            $subject = 'Your karaoke video is ready';
+            $body = '<p>Hi ' . e($name) . ',</p>'
+                . '<p>Your karaoke video for <strong>' . e($title) . '</strong> is ready.</p>'
+                . '<p><a href="' . e($jobUrl) . '">Watch and download it here</a>.</p>';
+        } else {
+            $subject = 'Your karaoke video generation failed';
+            $body = '<p>Hi ' . e($name) . ',</p>'
+                . '<p>Unfortunately, generating your karaoke video for <strong>' . e($title) . '</strong> failed.</p>'
+                . '<p>If this used a credit, it\'s been automatically refunded to your account.</p>'
+                . '<p><a href="' . e($jobUrl) . '">View the job</a> or head back to the homepage to try again.</p>';
+        }
+
+        $sent = (new Mailer())->send((string) $user['email'], (string) $name, $subject, $body);
+
+        if ($sent) {
+            Job::update((int) $job['id'], ['notified_at' => gmdate('Y-m-d H:i:s')]);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $video
+     */
+    private function syncVideo(int $jobId, array $video): void
+    {
+        if (Video::forJob($jobId) !== null) {
+            return;
+        }
+
+        Video::create([
+            'job_id' => $jobId,
+            'file_path' => (string) ($video['file_path'] ?? ''),
+            'duration_sec' => isset($video['duration_sec']) ? (int) round((float) $video['duration_sec']) : null,
+            'resolution' => (string) ($video['resolution'] ?? '1920x1080'),
+            'file_size_bytes' => isset($video['file_size_bytes']) ? (int) $video['file_size_bytes'] : null,
+        ]);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $backgrounds
+     */
+    private function syncBackgrounds(int $jobId, array $backgrounds): void
+    {
+        if (Background::forJob($jobId) !== []) {
+            return; // already persisted — backgrounds never change after generation
+        }
+
+        foreach ($backgrounds as $background) {
+            Background::create([
+                'job_id' => $jobId,
+                'prompt' => (string) ($background['prompt'] ?? ''),
+                'image_path' => (string) ($background['image_path'] ?? ''),
+                'is_selected' => 0,
+            ]);
+        }
+    }
+
+    /**
+     * Mirrors new lines from status.json's cumulative "logs" array into the
+     * `logs` table. Stateless by design (no "already synced" marker is kept
+     * anywhere) — it just compares against how many python-sourced rows this
+     * job already has in the DB and inserts whatever is beyond that, so it's
+     * safe to call on every poll.
+     *
+     * @param array<int, string> $logLines
+     */
+    private function syncPythonLogs(int $jobId, array $logLines): void
+    {
+        if ($logLines === []) {
+            return;
+        }
+
+        $alreadySynced = LogEntry::countForJobSource($jobId, Logger::SOURCE_PYTHON);
+        $newLines = array_slice($logLines, $alreadySynced);
+
+        foreach ($newLines as $line) {
+            $level = str_contains($line, 'ERROR:') ? Logger::LEVEL_ERROR : Logger::LEVEL_INFO;
+            Logger::log($level, Logger::SOURCE_PYTHON, (string) $line, [], $jobId);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $lyrics
+     */
+    private function syncLyrics(int $jobId, array $lyrics): void
+    {
+        $source = $lyrics['source'] ?? 'whisperx';
+        $wordsJson = json_encode($lyrics['words'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        $existing = Lyrics::forJob($jobId);
+
+        $data = [
+            'job_id' => $jobId,
+            'source' => in_array($source, ['lrclib', 'musixmatch', 'genius', 'whisperx'], true) ? $source : 'whisperx',
+            'raw_text' => $lyrics['raw_text'] ?? '',
+            'words_json' => $wordsJson,
+        ];
+
+        if ($existing === null) {
+            Lyrics::create($data);
+        } else {
+            unset($data['job_id']);
+            Lyrics::update((int) $existing['id'], $data);
+        }
+    }
+
+    private function spawnWorker(int $jobId): void
+    {
+        $pythonPath = Setting::get('python_path', 'python');
+        $rootPath = Config::get('paths.root');
+        $workerScript = Config::get('paths.python') . '/worker.py';
+        $logFile = $this->jobDirectory($jobId) . '/worker.log';
+
+        $escapedPython = escapeshellarg($pythonPath);
+        $escapedScript = escapeshellarg($workerScript);
+        $escapedLog = escapeshellarg($logFile);
+
+        if (stripos(PHP_OS, 'WIN') === 0) {
+            // "start /B" detaches the child so the HTTP request returns
+            // immediately instead of waiting minutes for the job to finish.
+            // bypass_shell=true + a hand-built "cmd /c ..." prefix is
+            // deliberate: proc_open()'s default Windows behaviour is to
+            // *also* wrap the command in its own "cmd /c "..."", and that
+            // second layer of quoting collides with the "" empty-title
+            // placeholder "start" requires, corrupting the command line
+            // ("The filename, directory name, or volume label syntax is
+            // incorrect."). Building the single cmd.exe layer ourselves and
+            // telling PHP not to add another avoids that entirely.
+            $command = sprintf(
+                'cmd /c start "" /B %s %s --job-id %d --root %s > %s 2>&1',
+                $escapedPython,
+                $escapedScript,
+                $jobId,
+                escapeshellarg($rootPath),
+                $escapedLog
+            );
+            $descriptorSpec = [];
+            $process = proc_open($command, $descriptorSpec, $pipes, $rootPath, null, ['bypass_shell' => true]);
+        } else {
+            $command = sprintf(
+                'nohup %s %s --job-id %d --root %s > %s 2>&1 &',
+                $escapedPython,
+                $escapedScript,
+                $jobId,
+                escapeshellarg($rootPath),
+                $escapedLog
+            );
+            $process = proc_open($command, [], $pipes, $rootPath);
+        }
+
+        if (!is_resource($process)) {
+            Logger::error('Failed to spawn Python worker process', ['job_id' => $jobId], $jobId, Logger::SOURCE_PHP);
+            throw new RuntimeException('Could not start the processing worker.');
+        }
+
+        proc_close($process);
+
+        Logger::info('Python worker spawned', ['job_id' => $jobId], $jobId, Logger::SOURCE_PHP);
+    }
+}
