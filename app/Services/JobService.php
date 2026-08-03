@@ -614,6 +614,19 @@ final class JobService
         // folder (see _download_local_backgrounds() in handler.py).
         unset($config['job_dir'], $config['local_backgrounds_path']);
 
+        // ffmpeg_path/ffprobe_path from Settings are whatever this local
+        // (Windows/WAMP) machine needs — e.g. "C:\ffmpeg\bin\ffmpeg.exe" —
+        // and are meaningless on the Linux container, which has ffmpeg on
+        // PATH via the Dockerfile's apt-get install. A real job hit this:
+        // the config carried the Windows path straight through and
+        // extract_audio failed with "No such file or directory:
+        // 'C:\ffmpeg\bin\ffmpeg.exe'" on RunPod's side. handler.py's own
+        // config.setdefault(...) never kicks in here since these keys
+        // *are* present (just wrong), not absent — has to be overridden
+        // explicitly, here, before dispatch.
+        $config['ffmpeg_path'] = 'ffmpeg';
+        $config['ffprobe_path'] = 'ffprobe';
+
         if ($config['background_source'] === 'local') {
             $config['local_background_filenames'] = $this->listLocalBackgroundFilenames();
         }
