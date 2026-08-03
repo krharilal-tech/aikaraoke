@@ -51,32 +51,37 @@ def _allow_legacy_torch_checkpoint_loading() -> None:
     from untrusted pickled checkpoints), but it broke loading pyannote.audio's
     pretrained VAD checkpoint (used internally by whisperx.load_model() for
     the vad_filter=True path — see _detect_restricted_language() below),
-    which embeds an omegaconf.listconfig.ListConfig object alongside the
-    tensor weights: "WeightsUnpickler error: Unsupported global: GLOBAL
+    which embeds OmegaConf objects alongside the tensor weights:
+    "WeightsUnpickler error: Unsupported global: GLOBAL
     omegaconf.listconfig.ListConfig was not an allowed global by default."
 
-    PyTorch's own error message offers two fixes: allowlist the specific
-    class via torch.serialization.add_safe_globals(...), or restore the old
-    default entirely. Allowlisting one class at a time risks a
-    whack-a-mole cycle — the next model with a different embedded config
-    type would just hit the same wall again. Since every checkpoint this
-    app loads comes from a well-known, trusted source (WhisperX/pyannote's
-    own published models, Meta's Demucs releases, the Malayalam-specific
-    HuggingFace checkpoint — never an arbitrary user upload), restoring the
-    permissive pre-2.6 default for this process is the pragmatic choice:
-    only override the default when a caller doesn't explicitly set
-    weights_only itself, so nothing here silently overrides an intentional
-    True elsewhere."""
+    Monkey-patching torch.load's default itself (the first fix PyTorch's
+    error message suggests) turned out not to work here — confirmed live
+    against a real job — because whatever actually loads this checkpoint
+    (pytorch_lightning's own checkpoint loader, going by "Lightning
+    automatically upgraded your loaded checkpoint..." in the logs) had
+    already bound its own reference to the original torch.load before this
+    module's patch ever ran, so reassigning torch.load afterward didn't
+    reach it. torch.serialization.add_safe_globals(...) doesn't have that
+    problem — it adds to a shared registry torch's unpickler consults at
+    unpickling time, not a specific call site, so it works regardless of
+    which code path or import order got there first.
+
+    Allowlisting DictConfig/ContainerMetadata/Metadata alongside the
+    ListConfig actually named in the error is deliberately preemptive:
+    OmegaConf structures nearly always nest more than one of these
+    together, and each is exactly the kind of low-level container/metadata
+    type that's safe to trust from a well-known source. Every checkpoint
+    this app loads comes from one — WhisperX/pyannote's own published
+    models, the Malayalam-specific HuggingFace checkpoint — never an
+    arbitrary user upload."""
 
     import torch
+    from omegaconf.base import ContainerMetadata, Metadata
+    from omegaconf.dictconfig import DictConfig
+    from omegaconf.listconfig import ListConfig
 
-    original_load = torch.load
-
-    def _patched_load(*args: Any, **kwargs: Any) -> Any:
-        kwargs.setdefault("weights_only", False)
-        return original_load(*args, **kwargs)
-
-    torch.load = _patched_load
+    torch.serialization.add_safe_globals([ListConfig, DictConfig, ContainerMetadata, Metadata])
 
 
 _disable_huggingface_symlinks()
