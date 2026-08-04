@@ -22,14 +22,37 @@ class DownloadError(Exception):
     pass
 
 
+def _write_cookie_file(job_dir: Path, cookies_text: str) -> str | None:
+    """YouTube occasionally bot-blocks datacenter IPs (RunPod's included) with
+    "Sign in to confirm you're not a bot" — passing a real logged-in
+    session's cookies (Settings -> YouTube Cookies, Netscape cookies.txt
+    format) satisfies that check same as a real browser would. Written
+    fresh per job rather than referencing a shared path since job_dir is
+    an ephemeral per-job tempdir on RunPod, not a fixed location."""
+
+    if not cookies_text.strip():
+        return None
+
+    cookie_path = job_dir / "cookies.txt"
+    cookie_path.write_text(cookies_text, encoding="utf-8")
+
+    return str(cookie_path)
+
+
 def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
     url = config["youtube_url"]
     job_dir = Path(config["job_dir"])
     max_duration = int(config.get("max_video_length_seconds", 600))
+    cookie_file = _write_cookie_file(job_dir, str(config.get("youtube_cookies", "")))
 
     status.log(f"Fetching metadata for {url}")
 
-    with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True, "noplaylist": True}) as probe:
+    probe_opts: dict[str, Any] = {"quiet": True, "no_warnings": True, "noplaylist": True}
+
+    if cookie_file:
+        probe_opts["cookiefile"] = cookie_file
+
+    with yt_dlp.YoutubeDL(probe_opts) as probe:
         try:
             info = probe.extract_info(url, download=False)
         except yt_dlp.utils.DownloadError as exc:
@@ -57,13 +80,16 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
 
     output_template = str(job_dir / "source_audio.%(ext)s")
 
-    ydl_opts = {
+    ydl_opts: dict[str, Any] = {
         "format": "bestaudio/best",
         "outtmpl": output_template,
         "noplaylist": True,
         "quiet": True,
         "no_warnings": True,
     }
+
+    if cookie_file:
+        ydl_opts["cookiefile"] = cookie_file
 
     status.log("Downloading best-quality audio…")
 

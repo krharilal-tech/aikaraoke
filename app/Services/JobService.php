@@ -91,6 +91,7 @@ final class JobService
             'prompt_model' => Setting::get('prompt_model', 'gpt-4o-mini'),
             'background_source' => Setting::get('background_source', 'openai'),
             'local_backgrounds_path' => $this->resolvePath(Setting::get('local_backgrounds_path', 'storage/backgrounds')),
+            'youtube_cookies' => Setting::get('youtube_cookies', ''),
             'openai_api_key' => env('OPENAI_API_KEY', ''),
             'musixmatch_api_key' => env('MUSIXMATCH_API_KEY', ''),
             'genius_access_token' => env('GENIUS_ACCESS_TOKEN', ''),

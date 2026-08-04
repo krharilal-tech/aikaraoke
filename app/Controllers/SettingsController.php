@@ -33,7 +33,11 @@ final class SettingsController extends Controller
         'transcription_language',
         'max_video_length_seconds',
         'temp_storage_path',
+        'youtube_cookies',
     ];
+
+    /** cookies.txt content routinely runs several KB — everything else here is a short path/model name. */
+    private const YOUTUBE_COOKIES_MAX_LENGTH = 65000;
 
     /** Valid values for transcription_language — kept in sync with the <select> in settings/index.php. */
     private const TRANSCRIPTION_LANGUAGES = ['auto', 'ta', 'ml', 'hi', 'en'];
@@ -63,7 +67,7 @@ final class SettingsController extends Controller
                 continue;
             }
 
-            $dbValues[$key] = Sanitizer::string($raw, 500);
+            $dbValues[$key] = Sanitizer::string($raw, $key === 'youtube_cookies' ? self::YOUTUBE_COOKIES_MAX_LENGTH : 500);
         }
 
         if (isset($dbValues['max_video_length_seconds'])) {
