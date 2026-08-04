@@ -7,6 +7,7 @@
 <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
 <meta name="base-url" content="<?= e(base_url()) ?>">
 <meta name="auth-status" content="<?= \App\Core\Auth::check() ? '1' : '0' ?>">
+<link rel="icon" type="image/svg+xml" href="<?= e(asset('img/favicon.svg')) ?>">
 <link rel="stylesheet" href="<?= e(asset('vendor/bootstrap/css/bootstrap.min.css')) ?>">
 <link rel="stylesheet" href="<?= e(asset('vendor/bootstrap-icons/bootstrap-icons.min.css')) ?>">
 <link rel="stylesheet" href="<?= e(asset('css/app.css')) ?>">
