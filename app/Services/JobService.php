@@ -187,6 +187,44 @@ final class JobService
     }
 
     /**
+     * Fails and refunds every job stuck mid-pipeline with no status update
+     * in $staleAfterMinutes — see Job::staleCandidates() for why this has
+     * to exist (a job the worker abandons without ever calling back would
+     * otherwise sit "in progress" forever). Intended to run every cron
+     * cycle alongside sync-jobs.php's normal sync pass.
+     *
+     * @return int number of jobs failed
+     */
+    public function failStaleJobs(int $staleAfterMinutes = 10): int
+    {
+        $jobs = Job::staleCandidates($staleAfterMinutes);
+
+        foreach ($jobs as $job) {
+            $jobId = (int) $job['id'];
+
+            Job::update($jobId, [
+                'state' => Job::STATE_FAILED,
+                'error_message' => 'The worker never responded — this job was likely dropped before it could start '
+                    . '(e.g. the GPU provider ran out of capacity). Any credit used has been refunded automatically.',
+            ]);
+
+            if ($job['user_id'] !== null) {
+                Credit::refundForJob((int) $job['user_id'], $jobId);
+            }
+
+            Logger::error('Job marked failed — no status update in ' . $staleAfterMinutes . ' minute(s)', ['job_id' => $jobId], $jobId, Logger::SOURCE_PHP);
+
+            $updated = Job::find($jobId);
+
+            if ($updated !== null) {
+                $this->notifyIfTerminal($updated);
+            }
+        }
+
+        return count($jobs);
+    }
+
+    /**
      * Read the JSON status file the Python worker maintains and mirror any
      * changes into the `jobs` table. Returns the merged view used by the
      * status-poll API (DB row + live status file content).

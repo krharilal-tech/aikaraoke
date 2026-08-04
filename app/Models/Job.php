@@ -79,6 +79,34 @@ final class Job extends Model
         );
     }
 
+    /**
+     * Jobs stuck mid-pipeline with no state change in a long time — the
+     * catch-all for "the worker died/was dropped and nothing will ever
+     * update this row again," which the normal sync path can't detect on
+     * its own since it only reacts to callbacks that arrive, never to ones
+     * that don't. Real case this was built for: a RunPod job accepted with
+     * a 2xx response, throttled waiting for GPU capacity, then silently
+     * expired from RunPod's queue before ever starting handler.py — no
+     * callback of any kind was ever coming, so the job sat at "queued"
+     * forever with nothing to notice it was abandoned.
+     *
+     * `updated_at` is the right column to check even for "queued" —
+     * MySQL's ON UPDATE CURRENT_TIMESTAMP means it still equals
+     * `created_at` until the first real state change, so a job that never
+     * left "queued" looks exactly as stale as one that did.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function staleCandidates(int $minutes): array
+    {
+        return static::db()->fetchAll(
+            "SELECT * FROM `jobs`
+             WHERE `state` NOT IN (?, ?)
+               AND `updated_at` < DATE_SUB(UTC_TIMESTAMP(), INTERVAL ? MINUTE)",
+            [self::STATE_COMPLETED, self::STATE_FAILED, $minutes]
+        );
+    }
+
     public static function extractYoutubeId(string $url): ?string
     {
         $patterns = [

@@ -43,4 +43,14 @@ foreach ($jobs as $job) {
     }
 }
 
+// Catches jobs a worker abandoned without ever calling back (e.g. RunPod
+// silently dropping a throttled job before it could start) — the sync
+// loop above only reacts to callbacks that arrive, never to ones that
+// don't, so this is the only thing that notices those.
+$staleCount = $jobService->failStaleJobs();
+
+if ($staleCount > 0) {
+    echo sprintf("[%s] Failed %d stale job(s).\n", gmdate('c'), $staleCount);
+}
+
 echo sprintf("[%s] Done.\n", gmdate('c'));
