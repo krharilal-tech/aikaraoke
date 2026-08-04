@@ -24,6 +24,7 @@
 
   const PENDING_URL_KEY = 'aikaraoke_pending_url';
   const PENDING_KEEP_VOCALS_KEY = 'aikaraoke_pending_keep_vocals';
+  const PENDING_LANGUAGE_KEY = 'aikaraoke_pending_language';
 
   $url.on('input', clearError);
 
@@ -46,6 +47,13 @@
       $('#keepVocals').prop('checked', true);
     }
     sessionStorage.removeItem(PENDING_KEEP_VOCALS_KEY);
+
+    const pendingLanguage = sessionStorage.getItem(PENDING_LANGUAGE_KEY);
+
+    if (pendingLanguage) {
+      $('#language').val(pendingLanguage);
+    }
+    sessionStorage.removeItem(PENDING_LANGUAGE_KEY);
 
     if (window.AK.isAuthenticated) {
       $form.trigger('submit');
@@ -71,6 +79,7 @@
       data: {
         youtube_url: url,
         keep_vocals: $('#keepVocals').is(':checked') ? 1 : 0,
+        language: $('#language').val(),
         _csrf: window.AK.csrfToken,
       },
       dataType: 'json',
@@ -88,6 +97,7 @@
         if (xhr.status === 401) {
           sessionStorage.setItem(PENDING_URL_KEY, url);
           sessionStorage.setItem(PENDING_KEEP_VOCALS_KEY, $('#keepVocals').is(':checked') ? '1' : '0');
+          sessionStorage.setItem(PENDING_LANGUAGE_KEY, $('#language').val());
           window.location.href = window.AK.baseUrl + '/login?next=%2F';
           return;
         }

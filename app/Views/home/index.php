@@ -28,6 +28,18 @@
             </div>
             <div class="invalid-feedback d-block text-danger small mb-3" id="urlError" style="display:none !important;"></div>
 
+            <div class="mb-4">
+              <label for="language" class="form-label fw-semibold">Song language</label>
+              <select class="form-control form-control-ak" id="language" name="language">
+                <option value="auto">Auto-detect</option>
+                <option value="ta">Tamil</option>
+                <option value="ml">Malayalam</option>
+                <option value="hi">Hindi</option>
+                <option value="en">English</option>
+              </select>
+              <div class="form-text">If you know the song's language, picking it directly is more reliable than auto-detect.</div>
+            </div>
+
             <div class="form-check form-switch mb-4">
               <input class="form-check-input" type="checkbox" id="keepVocals" name="keep_vocals">
               <label class="form-check-label text-secondary" for="keepVocals">

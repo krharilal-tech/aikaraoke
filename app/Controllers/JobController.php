@@ -20,6 +20,9 @@ use Throwable;
 
 final class JobController extends Controller
 {
+    /** Kept in sync with SettingsController::TRANSCRIPTION_LANGUAGES and the <select> in Views/home/index.php. */
+    private const LANGUAGES = ['auto', 'ta', 'ml', 'hi', 'en'];
+
     private JobService $jobService;
 
     public function __construct()
@@ -53,6 +56,11 @@ final class JobController extends Controller
 
         $youtubeUrl = trim((string) $request->input('youtube_url', ''));
         $keepVocals = (bool) $request->input('keep_vocals', false);
+        $language = (string) $request->input('language', 'auto');
+
+        if (!in_array($language, self::LANGUAGES, true)) {
+            $language = 'auto';
+        }
 
         if (!Sanitizer::isYoutubeUrl($youtubeUrl)) {
             $this->json(['success' => false, 'message' => 'Please provide a valid YouTube video URL.'], 422);
@@ -61,7 +69,10 @@ final class JobController extends Controller
         $maxSeconds = (int) Setting::get('max_video_length_seconds', '600');
 
         try {
-            $job = $this->jobService->create($youtubeUrl, $keepVocals, $userId);
+            // 'auto' means "use whatever Settings has configured" — null here
+            // rather than the literal string keeps buildJobConfig() from
+            // needing to special-case it twice.
+            $job = $this->jobService->create($youtubeUrl, $keepVocals, $userId, $language === 'auto' ? null : $language);
         } catch (Throwable $e) {
             Logger::error('Failed to create job', ['error' => $e->getMessage()]);
             $this->json(['success' => false, 'message' => 'Could not start the job. Please try again.'], 500);

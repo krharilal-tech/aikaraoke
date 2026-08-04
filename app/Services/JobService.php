@@ -22,7 +22,7 @@ use RuntimeException;
  */
 final class JobService
 {
-    public function create(string $youtubeUrl, bool $keepVocals, ?int $userId = null): array
+    public function create(string $youtubeUrl, bool $keepVocals, ?int $userId = null, ?string $language = null): array
     {
         $jobId = (int) Job::create([
             'user_id' => $userId,
@@ -54,11 +54,11 @@ final class JobService
 
         Job::update($jobId, ['storage_path' => $jobDir]);
 
-        $this->writeConfigFile($jobId, $youtubeUrl, $keepVocals);
+        $this->writeConfigFile($jobId, $youtubeUrl, $keepVocals, $language);
 
-        Logger::info('Job created', ['youtube_url' => $youtubeUrl, 'keep_vocals' => $keepVocals], $jobId);
+        Logger::info('Job created', ['youtube_url' => $youtubeUrl, 'keep_vocals' => $keepVocals, 'language' => $language], $jobId);
 
-        $this->spawnWorker($jobId, $youtubeUrl, $keepVocals);
+        $this->spawnWorker($jobId, $youtubeUrl, $keepVocals, $language);
 
         return Job::find($jobId) ?? [];
     }
@@ -73,7 +73,7 @@ final class JobService
      *
      * @return array<string, mixed>
      */
-    private function buildJobConfig(int $jobId, string $youtubeUrl, bool $keepVocals): array
+    private function buildJobConfig(int $jobId, string $youtubeUrl, bool $keepVocals, ?string $language = null): array
     {
         return [
             'job_id' => $jobId,
@@ -86,7 +86,13 @@ final class JobService
             'yt_dlp_path' => Setting::get('yt_dlp_path', 'yt-dlp'),
             'demucs_model' => Setting::get('demucs_model', 'htdemucs'),
             'whisperx_model' => Setting::get('whisperx_model', 'medium'),
-            'transcription_language' => Setting::get('transcription_language', 'auto'),
+            // $language is this one job's explicit override (Home page's
+            // "Song language" picker) — auto-detect is unreliable for
+            // short/ambiguous clips (confirmed on a real song that flipped
+            // between en/ta/ml across model sizes), so a user who already
+            // knows the language should be able to just say so, bypassing
+            // detection entirely rather than fighting it via global Settings.
+            'transcription_language' => $language ?? Setting::get('transcription_language', 'auto'),
             'image_model' => Setting::get('image_model', 'gpt-image-1'),
             'prompt_model' => Setting::get('prompt_model', 'gpt-4o-mini'),
             'background_source' => Setting::get('background_source', 'openai'),
@@ -108,9 +114,9 @@ final class JobService
      * written either way since nothing reads config.json to decide which
      * mode is active, but it's harmless/unused in RunPod mode.)
      */
-    private function writeConfigFile(int $jobId, string $youtubeUrl, bool $keepVocals): void
+    private function writeConfigFile(int $jobId, string $youtubeUrl, bool $keepVocals, ?string $language = null): void
     {
-        $config = $this->buildJobConfig($jobId, $youtubeUrl, $keepVocals);
+        $config = $this->buildJobConfig($jobId, $youtubeUrl, $keepVocals, $language);
 
         file_put_contents(
             $this->jobDirectory($jobId) . '/config.json',
@@ -529,10 +535,10 @@ final class JobService
         }
     }
 
-    private function spawnWorker(int $jobId, string $youtubeUrl, bool $keepVocals): void
+    private function spawnWorker(int $jobId, string $youtubeUrl, bool $keepVocals, ?string $language = null): void
     {
         if ($this->runPodConfigured()) {
-            $this->dispatchToRunPod($jobId, $youtubeUrl, $keepVocals);
+            $this->dispatchToRunPod($jobId, $youtubeUrl, $keepVocals, $language);
 
             return;
         }
@@ -604,9 +610,9 @@ final class JobService
      * progresses and once it's done — see docs/CONFIGURATION.md's RunPod
      * section for the full request/response shape.
      */
-    private function dispatchToRunPod(int $jobId, string $youtubeUrl, bool $keepVocals): void
+    private function dispatchToRunPod(int $jobId, string $youtubeUrl, bool $keepVocals, ?string $language = null): void
     {
-        $config = $this->buildJobConfig($jobId, $youtubeUrl, $keepVocals);
+        $config = $this->buildJobConfig($jobId, $youtubeUrl, $keepVocals, $language);
 
         // Neither of these means anything on a remote machine — job_dir is
         // a local path on RunPod's own (ephemeral) disk that
