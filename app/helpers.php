@@ -39,7 +39,20 @@ if (!function_exists('base_url')) {
 if (!function_exists('asset')) {
     function asset(string $path): string
     {
-        return base_url('assets/' . ltrim($path, '/'));
+        $relativePath = ltrim($path, '/');
+        $url = base_url('assets/' . $relativePath);
+        $absolutePath = Config::get('paths.root') . '/public/assets/' . $relativePath;
+
+        // Cache-busts every static asset by its own last-modified time — no
+        // manual version bump needed, and it self-corrects on every deploy.
+        // Without this, a deployed JS/CSS change can sit invisible behind
+        // stale browser and CDN caches indefinitely: real symptom hit in
+        // production, a form field added to home.js kept getting silently
+        // dropped because visitors' browsers (and Hostinger's own edge
+        // cache) kept serving the pre-change file at the same unchanged URL.
+        $mtime = is_file($absolutePath) ? filemtime($absolutePath) : false;
+
+        return $mtime !== false ? $url . '?v=' . $mtime : $url;
     }
 }
 
