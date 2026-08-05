@@ -6,6 +6,7 @@ use App\Controllers\AdminController;
 use App\Controllers\AuthController;
 use App\Controllers\HomeController;
 use App\Controllers\JobController;
+use App\Controllers\PageController;
 use App\Controllers\SettingsController;
 use App\Controllers\WorkerCallbackController;
 use App\Core\Router;
@@ -22,6 +23,11 @@ $router->post('/logout', [AuthController::class, 'logout']);
 
 $router->get('/', [HomeController::class, 'index'], auth: false);
 $router->get('/pricing', [HomeController::class, 'pricing'], auth: false);
+
+$router->get('/privacy', [PageController::class, 'privacy'], auth: false);
+$router->get('/terms', [PageController::class, 'terms'], auth: false);
+$router->get('/refund-policy', [PageController::class, 'refundPolicy'], auth: false);
+$router->get('/contact', [PageController::class, 'contact'], auth: false);
 
 $router->get('/admin/users', [AdminController::class, 'users']);
 $router->post('/admin/users/{id}/credits', [AdminController::class, 'adjustCredits']);
