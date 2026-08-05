@@ -24,6 +24,7 @@ $router->post('/logout', [AuthController::class, 'logout']);
 $router->get('/', [HomeController::class, 'index'], auth: false);
 $router->get('/pricing', [HomeController::class, 'pricing'], auth: false);
 
+$router->get('/about', [PageController::class, 'about'], auth: false);
 $router->get('/privacy', [PageController::class, 'privacy'], auth: false);
 $router->get('/terms', [PageController::class, 'terms'], auth: false);
 $router->get('/refund-policy', [PageController::class, 'refundPolicy'], auth: false);

@@ -14,6 +14,11 @@ use App\Core\Request;
  */
 final class PageController extends Controller
 {
+    public function about(Request $request): void
+    {
+        $this->view('pages/about', ['pageTitle' => 'About Us']);
+    }
+
     public function privacy(Request $request): void
     {
         $this->view('pages/privacy', ['pageTitle' => 'Privacy Policy']);
