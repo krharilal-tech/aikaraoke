@@ -13,8 +13,8 @@
         <li class="nav-item"><a class="nav-link" href="<?= e(base_url('/pricing')) ?>"><i class="bi bi-tags me-1"></i>Pricing</a></li>
         <?php if (\App\Core\Auth::check()): ?>
           <li class="nav-item"><a class="nav-link" href="<?= e(base_url('/jobs')) ?>"><i class="bi bi-clock-history me-1"></i>My Videos</a></li>
-          <li class="nav-item"><a class="nav-link" href="<?= e(base_url('/settings')) ?>"><i class="bi bi-gear me-1"></i>Settings</a></li>
           <?php if (\App\Core\Auth::isAdmin()): ?>
+            <li class="nav-item"><a class="nav-link" href="<?= e(base_url('/settings')) ?>"><i class="bi bi-gear me-1"></i>Settings</a></li>
             <li class="nav-item"><a class="nav-link" href="<?= e(base_url('/admin/users')) ?>"><i class="bi bi-shield-lock me-1"></i>Admin</a></li>
           <?php endif; ?>
           <li class="nav-item">

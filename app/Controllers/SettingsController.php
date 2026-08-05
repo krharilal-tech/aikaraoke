@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Core\Auth;
 use App\Core\Config;
 use App\Core\Controller;
 use App\Core\EnvWriter;
 use App\Core\Logger;
 use App\Core\Request;
+use App\Core\Response;
 use App\Core\Sanitizer;
 use App\Core\Session;
 use App\Models\Setting;
@@ -44,6 +46,8 @@ final class SettingsController extends Controller
 
     public function index(Request $request): void
     {
+        $this->requireAdmin();
+
         $this->view('settings/index', [
             'pageTitle' => 'Settings',
             'settings' => Setting::allAsMap(),
@@ -56,6 +60,7 @@ final class SettingsController extends Controller
 
     public function update(Request $request): void
     {
+        $this->requireAdmin();
         $this->requireCsrf($request);
 
         $dbValues = [];
@@ -105,5 +110,15 @@ final class SettingsController extends Controller
         Session::flash('settings_status', ['type' => 'success', 'message' => 'Settings saved successfully.']);
 
         $this->redirect(base_url('settings'));
+    }
+
+    private function requireAdmin(): void
+    {
+        // 404, not 403 — matches AdminController::requireAdmin(): a
+        // non-admin doesn't need confirmation that a settings section
+        // exists at all.
+        if (!Auth::isAdmin()) {
+            Response::notFound();
+        }
     }
 }
