@@ -44,7 +44,8 @@
         <h5 class="fw-bold mt-4">3. Who we share it with</h5>
         <p>We only share what's needed to run the Service — we do not sell your personal data to anyone.</p>
         <ul>
-          <li><strong>Google</strong> — only if you choose "Sign in with Google"</li>
+          <li><strong>Google</strong> — if you choose "Sign in with Google", and via Google Analytics, which we use
+            to understand site traffic (see Cookies below)</li>
           <li><strong>OpenAI</strong> — used for AI background image generation and lyric processing; receives song
             title and lyric text, not your account details</li>
           <li><strong>RunPod</strong> — runs the GPU processing (vocal removal, transcription, video rendering) on
@@ -55,8 +56,12 @@
         </ul>
 
         <h5 class="fw-bold mt-4">4. Cookies</h5>
-        <p>We use a single session cookie to keep you signed in. We do not currently use third-party advertising or
-          analytics trackers on this site.</p>
+        <p>We use a single session cookie to keep you signed in. We also use Google Analytics to understand overall
+          site traffic and usage patterns, which sets its own cookies and collects standard analytics data (such as
+          pages visited and general location). We do not use this data to identify you individually, and we do not
+          run advertising or ad-retargeting cookies on this site. You can opt out of Google Analytics tracking using
+          <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener">Google's browser
+          add-on</a>.</p>
 
         <h5 class="fw-bold mt-4">5. Data retention</h5>
         <p>Generated audio/video files are deleted automatically 7 days after your job finishes. Account data is
