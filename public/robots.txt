@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /jobs
+Disallow: /settings
+Disallow: /admin
+Disallow: /api/
+Disallow: /login
+Disallow: /register
+
+Sitemap: https://karaokai.in/sitemap.xml
