@@ -32,7 +32,7 @@ final class JobController extends Controller
 
     public function index(Request $request): void
     {
-        $jobs = Job::all('created_at DESC');
+        $jobs = Job::where(['user_id' => Auth::id()], 'created_at DESC');
 
         $this->view('jobs/index', [
             'pageTitle' => 'My Videos',
@@ -94,7 +94,7 @@ final class JobController extends Controller
         $id = Sanitizer::int($request->param('id'));
         $job = Job::find($id);
 
-        if ($job === null) {
+        if ($job === null || !$this->ownsJob($job)) {
             http_response_code(404);
             $this->view('jobs/not-found', ['pageTitle' => 'Job Not Found']);
 
@@ -112,11 +112,13 @@ final class JobController extends Controller
     public function status(Request $request): void
     {
         $id = Sanitizer::int($request->param('id'));
-        $status = $this->jobService->getStatus($id);
+        $job = Job::find($id);
 
-        if ($status === null) {
+        if ($job === null || !$this->ownsJob($job)) {
             $this->json(['success' => false, 'message' => 'Job not found.'], 404);
         }
+
+        $status = $this->jobService->getStatus($id);
 
         $this->json(['success' => true, ...$status]);
     }
@@ -129,6 +131,12 @@ final class JobController extends Controller
     public function image(Request $request): void
     {
         $jobId = Sanitizer::int($request->param('id'));
+        $job = Job::find($jobId);
+
+        if ($job === null || !$this->ownsJob($job)) {
+            Response::notFound();
+        }
+
         $filename = Sanitizer::filePathSegment((string) $request->param('filename'));
 
         if ($filename === '' || !preg_match('/\.(png|jpe?g|webp)$/i', $filename)) {
@@ -175,6 +183,12 @@ final class JobController extends Controller
 
     private function streamVideo(int $jobId, bool $inline): void
     {
+        $job = Job::find($jobId);
+
+        if ($job === null || !$this->ownsJob($job)) {
+            Response::notFound('Video not found.');
+        }
+
         $video = Video::forJob($jobId);
 
         if ($video === null || !is_file($video['file_path'])) {
@@ -219,5 +233,13 @@ final class JobController extends Controller
 
         fclose($handle);
         exit;
+    }
+
+    /**
+     * @param array<string, mixed> $job
+     */
+    private function ownsJob(array $job): bool
+    {
+        return Auth::isAdmin() || (int) $job['user_id'] === Auth::id();
     }
 }
