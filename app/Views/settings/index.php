@@ -53,6 +53,11 @@
               <input type="text" class="form-control form-control-ak" id="demucs_model" name="demucs_model" value="<?= e($settings['demucs_model']) ?>">
             </div>
             <div class="col-md-6 mb-3">
+              <label class="form-label" for="vocal_bleed_back_percent">Vocal Bleed-back %</label>
+              <input type="number" min="0" max="100" class="form-control form-control-ak" id="vocal_bleed_back_percent" name="vocal_bleed_back_percent" value="<?= e($settings['vocal_bleed_back_percent']) ?>">
+              <div class="form-text">Blends this much of the removed vocals stem back into the instrumental track. Demucs sometimes misclassifies reedy instruments (e.g. nadaswaram, shehnai) as vocals and drops them entirely — a small amount recovers them, at the cost of making the original singing faintly audible underneath. <code>0</code> disables blending (cleanest instrumental, but misclassified instruments stay lost).</div>
+            </div>
+            <div class="col-md-6 mb-3">
               <label class="form-label" for="whisperx_model">WhisperX Model</label>
               <input type="text" class="form-control form-control-ak" id="whisperx_model" name="whisperx_model" value="<?= e($settings['whisperx_model']) ?>">
             </div>

@@ -25,9 +25,10 @@ from services.whisperx_engine import select_device
 # they vanish from the instrumental track entirely, not just get quieter,
 # when that stem is dropped. Blending a small fraction of the removed
 # vocals stem back in recovers that misclassified content. Traded off
-# against this: the actual singing becomes very faintly audible under the
-# instrumental too. 0.10 keeps that trade-off light.
-VOCAL_BLEED_BACK_RATIO = 0.10
+# against this: the actual singing becomes audible under the instrumental
+# too, at whatever fraction is blended back in. Configurable via the
+# admin Settings page ("Vocal Bleed-back %"); defaults to 0 (disabled).
+DEFAULT_VOCAL_BLEED_BACK_PERCENT = 0
 
 
 class SeparationError(Exception):
@@ -82,10 +83,17 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
 
     status.log("Vocal separation complete: vocals.wav / instrumental.wav")
 
+    bleed_back_percent = config.get("vocal_bleed_back_percent", DEFAULT_VOCAL_BLEED_BACK_PERCENT)
+    bleed_back_ratio = max(0, min(100, int(bleed_back_percent))) / 100
+
+    if bleed_back_ratio <= 0:
+        status.log("Vocal bleed-back disabled (0%) — using the instrumental track as-is")
+        return {"vocals_path": str(vocals_dst), "instrumental_path": str(instrumental_dst)}
+
     status.log(
-        f"Blending {int(VOCAL_BLEED_BACK_RATIO * 100)}% of the vocals stem back into the "
+        f"Blending {int(bleed_back_ratio * 100)}% of the vocals stem back into the "
         "instrumental track — recovers instruments Demucs sometimes misclassifies as vocals "
-        "(e.g. nadaswaram), at the cost of very faint original vocals underneath"
+        "(e.g. nadaswaram), at the cost of the original vocals becoming audible underneath"
     )
 
     blended_path = job_dir / "instrumental_blended.wav"
@@ -94,7 +102,7 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
             "-i", str(instrumental_dst),
             "-i", str(vocals_dst),
             "-filter_complex",
-            f"[1:a]volume={VOCAL_BLEED_BACK_RATIO}[bleed];[0:a][bleed]amix=inputs=2:duration=first:dropout_transition=0:normalize=0",
+            f"[1:a]volume={bleed_back_ratio}[bleed];[0:a][bleed]amix=inputs=2:duration=first:dropout_transition=0:normalize=0",
             str(blended_path),
         ],
         config,

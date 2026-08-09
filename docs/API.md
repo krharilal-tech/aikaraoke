@@ -49,7 +49,7 @@ Settings form (tool paths, model names, API keys).
 
 ### `POST /settings`
 Body: any of `image_model`, `ffmpeg_path`, `ffprobe_path`, `python_path`,
-`yt_dlp_path`, `demucs_model`, `whisperx_model`,
+`yt_dlp_path`, `demucs_model`, `vocal_bleed_back_percent`, `whisperx_model`,
 `max_video_length_seconds`, `temp_storage_path` (persisted to the
 `settings` table), plus optional `OPENAI_API_KEY`, `MUSIXMATCH_API_KEY`,
 `GENIUS_ACCESS_TOKEN` (written to `.env`, never the database — blank

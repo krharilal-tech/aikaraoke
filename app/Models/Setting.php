@@ -24,6 +24,7 @@ final class Setting extends Model
         'python_path' => 'python',
         'yt_dlp_path' => 'yt-dlp',
         'demucs_model' => 'htdemucs',
+        'vocal_bleed_back_percent' => '0',
         'whisperx_model' => 'base',
         'transcription_language' => 'auto',
         'max_video_length_seconds' => '600',

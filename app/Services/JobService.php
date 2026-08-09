@@ -85,6 +85,7 @@ final class JobService
             'ffprobe_path' => Setting::get('ffprobe_path', 'ffprobe'),
             'yt_dlp_path' => Setting::get('yt_dlp_path', 'yt-dlp'),
             'demucs_model' => Setting::get('demucs_model', 'htdemucs'),
+            'vocal_bleed_back_percent' => (int) Setting::get('vocal_bleed_back_percent', '0'),
             'whisperx_model' => Setting::get('whisperx_model', 'medium'),
             // $language is this one job's explicit override (Home page's
             // "Song language" picker) — auto-detect is unreliable for

@@ -31,6 +31,7 @@ final class SettingsController extends Controller
         'python_path',
         'yt_dlp_path',
         'demucs_model',
+        'vocal_bleed_back_percent',
         'whisperx_model',
         'transcription_language',
         'max_video_length_seconds',
@@ -77,6 +78,10 @@ final class SettingsController extends Controller
 
         if (isset($dbValues['max_video_length_seconds'])) {
             $dbValues['max_video_length_seconds'] = (string) max(30, Sanitizer::int($dbValues['max_video_length_seconds'], 600));
+        }
+
+        if (isset($dbValues['vocal_bleed_back_percent'])) {
+            $dbValues['vocal_bleed_back_percent'] = (string) min(100, max(0, Sanitizer::int($dbValues['vocal_bleed_back_percent'], 0)));
         }
 
         if (isset($dbValues['background_source']) && !in_array($dbValues['background_source'], ['openai', 'local'], true)) {
