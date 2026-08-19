@@ -93,11 +93,26 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
 
     status.log("Downloading best-quality audio…")
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        try:
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
-        except yt_dlp.utils.DownloadError as exc:
-            raise DownloadError(f"Download failed: {exc}") from exc
+    except yt_dlp.utils.DownloadError as exc:
+        # YouTube's default "web" player client is the one most often
+        # 403'd on cloud/datacenter IPs (RunPod's included) at the actual
+        # media-CDN step — metadata (the probe above) still comes back
+        # fine since that's a lighter-weight, less-gated request. The
+        # "android" client gets its stream URLs from a different endpoint
+        # that isn't gated the same way, so it's worth a second attempt
+        # before giving up, without requiring cookies at all.
+        status.log(f"Download failed with default client ({exc}) — retrying via Android client…")
+
+        android_opts = {**ydl_opts, "extractor_args": {"youtube": {"player_client": ["android"]}}}
+
+        try:
+            with yt_dlp.YoutubeDL(android_opts) as ydl:
+                ydl.download([url])
+        except yt_dlp.utils.DownloadError as retry_exc:
+            raise DownloadError(f"Download failed: {retry_exc}") from retry_exc
 
     candidates = sorted(job_dir.glob("source_audio.*"))
 
