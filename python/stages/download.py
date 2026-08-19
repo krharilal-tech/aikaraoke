@@ -117,6 +117,14 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         "verbose": True,
         "noplaylist": True,
         "logger": _YdlLogger(status, "probe"),
+        # Deno alone (Dockerfile) only gets a JS runtime on PATH — yt-dlp
+        # still needs explicit opt-in to actually download the challenge
+        # solver script it runs *in* that runtime ("EJS"), which is off by
+        # default. Without this, every non-image format silently
+        # disappears with no clearer error than "Requested format is not
+        # available", which is what having both a working PO token *and*
+        # a working Deno install still wasn't enough to fix.
+        "remote_components": "ejs:github",
     }
 
     if cookie_file:
@@ -157,6 +165,7 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         "quiet": True,
         "verbose": True,
         "logger": _YdlLogger(status, "download"),
+        "remote_components": "ejs:github",
     }
 
     if cookie_file:
