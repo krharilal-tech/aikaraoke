@@ -41,7 +41,7 @@ RUN ln -sf $(which python3.11) /usr/local/bin/python && \
 # given the container's disk headroom is already tight.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        ffmpeg fonts-lohit-mlym fonts-lohit-taml fonts-lohit-deva git \
+        ffmpeg fonts-lohit-mlym fonts-lohit-taml fonts-lohit-deva git unzip \
     && rm -rf /var/lib/apt/lists/* \
     && ffmpeg -version | grep -q -- '--enable-libass' \
     || (echo "FFmpeg build is missing libass support" && exit 1)
@@ -70,6 +70,21 @@ RUN git clone --depth 1 --single-branch --branch 1.3.1 \
     && npm ci \
     && npx tsc \
     && npm prune --omit=dev
+
+# --- Signature/"n" parameter challenge solver runtime (yt-dlp's "EJS") ---
+# A completely separate mechanism from the PO token provider above: this
+# is what yt-dlp itself uses to decrypt the signature/n parameters
+# YouTube's player JS applies to stream URLs. Without a JS runtime yt-dlp
+# recognizes, it silently drops every non-image format rather than erring
+# clearly, which is what "Requested format is not available" actually
+# turned out to mean here. Deno is the runtime yt-dlp enables by default
+# for this — being on PATH is the entire configuration, no extractor-args
+# needed — and is a single static binary, lighter to add than bumping the
+# Node install above to the higher version (>=22) EJS itself would need
+# versus the >=20 the PO token server requires.
+ENV DENO_INSTALL=/usr/local/deno
+ENV PATH="${DENO_INSTALL}/bin:${PATH}"
+RUN curl -fsSL https://deno.land/install.sh | sh
 
 COPY python/requirements.txt /app/python/requirements.txt
 
