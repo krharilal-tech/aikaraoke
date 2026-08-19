@@ -22,6 +22,36 @@ class DownloadError(Exception):
     pass
 
 
+class _YdlLogger:
+    """Routes yt-dlp's own diagnostics into status.log instead of letting
+    "quiet"/"no_warnings" swallow them. This matters specifically for the
+    PO token provider (Dockerfile/docker-entrypoint.sh): when it isn't
+    reachable or isn't producing a valid token, yt-dlp doesn't say so
+    directly — it silently drops the formats that needed one and then
+    fails with the generic "Requested format is not available", which by
+    itself gives no way to tell "PO token problem" apart from any other
+    cause. The warning that actually explains *why* formats got dropped
+    only surfaces if something is listening for it. Debug lines are
+    filtered to plugin/PO-token-related ones — full debug output is
+    mostly per-request noise that isn't worth mirroring into the DB via
+    StatusWriter.log()."""
+
+    def __init__(self, status: StatusWriter, label: str) -> None:
+        self._status = status
+        self._label = label
+
+    def debug(self, msg: str) -> None:
+        lowered = msg.lower()
+        if "pot" in lowered or "po token" in lowered or "plugin" in lowered:
+            self._status.log(f"[yt-dlp {self._label} debug] {msg}")
+
+    def warning(self, msg: str) -> None:
+        self._status.log(f"[yt-dlp {self._label} warning] {msg}")
+
+    def error(self, msg: str) -> None:
+        self._status.log(f"[yt-dlp {self._label} error] {msg}")
+
+
 def _write_cookie_file(job_dir: Path, cookies_text: str) -> str | None:
     """Optional extra layer on top of the PO token provider (Dockerfile +
     docker-entrypoint.sh) that now handles YouTube's "Sign in to confirm
@@ -51,7 +81,12 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
 
     status.log(f"Fetching metadata for {url}")
 
-    probe_opts: dict[str, Any] = {"quiet": True, "no_warnings": True, "noplaylist": True}
+    probe_opts: dict[str, Any] = {
+        "quiet": True,
+        "verbose": True,
+        "noplaylist": True,
+        "logger": _YdlLogger(status, "probe"),
+    }
 
     if cookie_file:
         probe_opts["cookiefile"] = cookie_file
@@ -89,7 +124,8 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         "outtmpl": output_template,
         "noplaylist": True,
         "quiet": True,
-        "no_warnings": True,
+        "verbose": True,
+        "logger": _YdlLogger(status, "download"),
     }
 
     if cookie_file:
@@ -110,7 +146,11 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         # before giving up, without requiring cookies at all.
         status.log(f"Download failed with default client ({exc}) — retrying via Android client…")
 
-        android_opts = {**ydl_opts, "extractor_args": {"youtube": {"player_client": ["android"]}}}
+        android_opts = {
+            **ydl_opts,
+            "extractor_args": {"youtube": {"player_client": ["android"]}},
+            "logger": _YdlLogger(status, "download-android-retry"),
+        }
 
         try:
             with yt_dlp.YoutubeDL(android_opts) as ydl:
