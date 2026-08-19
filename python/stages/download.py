@@ -124,7 +124,13 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         # disappears with no clearer error than "Requested format is not
         # available", which is what having both a working PO token *and*
         # a working Deno install still wasn't enough to fix.
-        "remote_components": "ejs:github",
+        # Must be a list, not a bare string — yt-dlp does set(value)
+        # internally, and set() on a plain string iterates its individual
+        # characters rather than treating it as one item. Confirmed by the
+        # exact failure this produced: "Ignoring unsupported remote
+        # component(s): s, :, j, g, u, b, e, t, h, i" — literally every
+        # character of "ejs:github".
+        "remote_components": ["ejs:github"],
     }
 
     if cookie_file:
@@ -165,7 +171,13 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         "quiet": True,
         "verbose": True,
         "logger": _YdlLogger(status, "download"),
-        "remote_components": "ejs:github",
+        # Must be a list, not a bare string — yt-dlp does set(value)
+        # internally, and set() on a plain string iterates its individual
+        # characters rather than treating it as one item. Confirmed by the
+        # exact failure this produced: "Ignoring unsupported remote
+        # component(s): s, :, j, g, u, b, e, t, h, i" — literally every
+        # character of "ejs:github".
+        "remote_components": ["ejs:github"],
     }
 
     if cookie_file:
