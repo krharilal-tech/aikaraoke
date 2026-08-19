@@ -5,7 +5,13 @@
 #   venv/bin/pip install -r requirements.txt           (Linux/Ubuntu)
 
 # --- YouTube download (Downloading stage) ---
-yt-dlp>=2024.8.6
+# Bumped from >=2024.8.6 (Aug 2026): YouTube's extraction/anti-bot scheme
+# shifts often enough that yt-dlp needs frequent releases to keep up, and
+# an unchanged floor here doesn't force a new resolve once RunPod's build
+# has cached this layer — a stale-yt-dlp build kept failing downloads with
+# "HTTP Error 403: Forbidden" on the actual media URL (metadata fetch still
+# worked) until this floor was raised to force a fresh install.
+yt-dlp>=2026.7.4
 
 # --- HTTP calls: LRCLIB/Musixmatch/Genius lookups, OpenAI API (Extracting
 #     Lyrics / Generating AI Backgrounds stages) ---
