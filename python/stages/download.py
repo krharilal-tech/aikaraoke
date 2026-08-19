@@ -10,6 +10,8 @@ dependency of its own.
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -40,9 +42,11 @@ class _YdlLogger:
         self._status = status
         self._label = label
 
+    _DEBUG_KEYWORDS = ("pot", "po token", "plugin", "deno", "node", "runtime", "ejs", "challenge", "js-runtime")
+
     def debug(self, msg: str) -> None:
         lowered = msg.lower()
-        if "pot" in lowered or "po token" in lowered or "plugin" in lowered:
+        if any(keyword in lowered for keyword in self._DEBUG_KEYWORDS):
             self._status.log(f"[yt-dlp {self._label} debug] {msg}")
 
     def warning(self, msg: str) -> None:
@@ -73,11 +77,38 @@ def _write_cookie_file(job_dir: Path, cookies_text: str) -> str | None:
     return str(cookie_path)
 
 
+def _log_deno_availability(status: StatusWriter) -> None:
+    """Direct, unambiguous check for the JS runtime yt-dlp's signature/n-
+    parameter solver ("EJS") needs — not dependent on catching or
+    correctly guessing the wording of yt-dlp's own internal debug output,
+    which is what actually hid the real problem the first time around
+    (see the Dockerfile's Deno install for context)."""
+
+    deno_path = shutil.which("deno")
+    status.log(f"[env check] deno on PATH: {deno_path or 'NOT FOUND'}")
+
+    if not deno_path:
+        return
+
+    try:
+        result = subprocess.run(
+            [deno_path, "--version"], capture_output=True, text=True, timeout=10
+        )
+        status.log(
+            f"[env check] deno --version (exit {result.returncode}): "
+            f"{result.stdout.strip() or result.stderr.strip()}"
+        )
+    except Exception as exc:  # noqa: BLE001 - diagnostic only, any failure is worth surfacing
+        status.log(f"[env check] deno --version failed to run: {exc}")
+
+
 def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
     url = config["youtube_url"]
     job_dir = Path(config["job_dir"])
     max_duration = int(config.get("max_video_length_seconds", 600))
     cookie_file = _write_cookie_file(job_dir, str(config.get("youtube_cookies", "")))
+
+    _log_deno_availability(status)
 
     status.log(f"Fetching metadata for {url}")
 
