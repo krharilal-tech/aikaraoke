@@ -23,12 +23,16 @@ class DownloadError(Exception):
 
 
 def _write_cookie_file(job_dir: Path, cookies_text: str) -> str | None:
-    """YouTube occasionally bot-blocks datacenter IPs (RunPod's included) with
-    "Sign in to confirm you're not a bot" — passing a real logged-in
-    session's cookies (Settings -> YouTube Cookies, Netscape cookies.txt
-    format) satisfies that check same as a real browser would. Written
-    fresh per job rather than referencing a shared path since job_dir is
-    an ephemeral per-job tempdir on RunPod, not a fixed location."""
+    """Optional extra layer on top of the PO token provider (Dockerfile +
+    docker-entrypoint.sh) that now handles YouTube's "Sign in to confirm
+    you're not a bot" check on its own, cookie-free. Left in as a fallback
+    for Settings -> YouTube Cookies (Netscape cookies.txt format) since a
+    real logged-in session still works too — just don't rely on it as the
+    primary fix: Google rotates session tokens independently of their
+    listed expiry, so a static export goes stale within days regardless of
+    how carefully it was exported. Written fresh per job rather than
+    referencing a shared path since job_dir is an ephemeral per-job
+    tempdir on RunPod, not a fixed location."""
 
     if not cookies_text.strip():
         return None

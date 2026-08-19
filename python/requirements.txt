@@ -13,6 +13,15 @@
 # worked) until this floor was raised to force a fresh install.
 yt-dlp>=2026.7.4
 
+# Proof-of-origin token provider plugin — queries the local Node server
+# the Dockerfile builds and docker-entrypoint.sh starts, so yt-dlp can get
+# past YouTube's "Sign in to confirm you're not a bot" without a personal
+# account's cookies at all (those need re-exporting every few days as
+# Google rotates the session tokens regardless of their listed expiry —
+# see python/stages/download.py). Pinned to match the Node server's
+# cloned branch in the Dockerfile; bump both together.
+bgutil-ytdlp-pot-provider==1.3.1
+
 # --- HTTP calls: LRCLIB/Musixmatch/Genius lookups, OpenAI API (Extracting
 #     Lyrics / Generating AI Backgrounds stages) ---
 requests>=2.32.0

@@ -111,12 +111,14 @@
             <label class="form-label" for="youtube_cookies">YouTube Cookies (cookies.txt)</label>
             <textarea class="form-control form-control-ak" id="youtube_cookies" name="youtube_cookies" rows="4" spellcheck="false"><?= e($settings['youtube_cookies']) ?></textarea>
             <div class="form-text">
-              Only needed if downloads start failing with "Sign in to confirm you're not a bot" —
-              YouTube occasionally blocks datacenter IPs (like the GPU worker's) without this.
-              Log into YouTube in your own browser, export cookies in Netscape format using a
-              browser extension (e.g. "Get cookies.txt LOCALLY"), and paste the full file
-              contents here. Leave blank to download without cookies, which works fine most of
-              the time.
+              The GPU worker now gets past "Sign in to confirm you're not a bot" on its own
+              (a proof-of-origin token provider runs alongside it) — leave this blank unless
+              that stops working. If it does, log into YouTube in your own browser, export
+              cookies in Netscape format using a browser extension (e.g. "Get cookies.txt
+              LOCALLY"), and paste the full file contents here. Treat it as a temporary
+              backstop, not a fix: a real account's session tokens rotate independently of
+              their listed expiry, so a static export goes stale within days regardless of how
+              it was exported.
             </div>
           </div>
         </div>
