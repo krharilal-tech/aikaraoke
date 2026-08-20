@@ -26,7 +26,8 @@
           <p class="text-secondary small mb-4">
             <?= (int) $package['credits'] ?> karaokes &mdash; ₹<?= number_format((float) $package['price_inr'] / max((int) $package['credits'], 1), 1) ?> each
           </p>
-          <button class="<?= $isPopular ? 'gradient-btn btn' : 'btn btn-outline-secondary' ?> w-100" disabled>Coming Soon</button>
+          <button type="button" class="buy-package-btn <?= $isPopular ? 'gradient-btn btn' : 'btn btn-outline-secondary' ?> w-100"
+                  data-package-id="<?= (int) $package['id'] ?>" data-package-name="<?= e($package['name']) ?>">Buy Now</button>
         </div>
       </div>
     <?php endforeach; ?>
@@ -45,8 +46,33 @@
       </div>
       <div class="mb-0">
         <div class="fw-semibold">How do I pay?</div>
-        <p class="text-secondary small mb-0">Paid credit packs are launching soon via Razorpay (UPI, cards, netbanking). Sign up now to claim your free karaoke in the meantime.</p>
+        <p class="text-secondary small mb-0">Via Cashfree — UPI, cards, and netbanking are all supported.</p>
       </div>
     </div>
   </div>
 </section>
+
+<div class="modal fade" id="buyPackageModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirm your purchase</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-3">Buying <strong id="buyPackageModalName"></strong>.</p>
+        <label class="form-label" for="buyPackagePhone">Phone number</label>
+        <input type="tel" class="form-control form-control-ak" id="buyPackagePhone" maxlength="10"
+               value="<?= e($userPhone ?? '') ?>" placeholder="10-digit mobile number">
+        <div class="form-text">Required by Cashfree to process the payment.</div>
+        <div id="buyPackageError" class="text-danger small mt-2" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="gradient-btn btn" id="buyPackageConfirmBtn">Continue to Payment</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>

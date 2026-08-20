@@ -32,13 +32,14 @@ final class Credit extends Model
         return (int) ($row['balance'] ?? 0);
     }
 
-    public static function grant(int $userId, int $amount, string $reason, ?int $jobId = null): void
+    public static function grant(int $userId, int $amount, string $reason, ?int $jobId = null, ?int $paymentOrderId = null): void
     {
         static::create([
             'user_id' => $userId,
             'delta' => $amount,
             'reason' => $reason,
             'job_id' => $jobId,
+            'payment_order_id' => $paymentOrderId,
         ]);
     }
 

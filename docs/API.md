@@ -50,11 +50,12 @@ Settings form (tool paths, model names, API keys).
 ### `POST /settings`
 Body: any of `image_model`, `ffmpeg_path`, `ffprobe_path`, `python_path`,
 `yt_dlp_path`, `demucs_model`, `vocal_bleed_back_percent`, `whisperx_model`,
-`max_video_length_seconds`, `temp_storage_path` (persisted to the
-`settings` table), plus optional `OPENAI_API_KEY`, `MUSIXMATCH_API_KEY`,
-`GENIUS_ACCESS_TOKEN` (written to `.env`, never the database — blank
-means "leave unchanged", there's no way to read a saved key back out
-through this endpoint). Requires `_csrf`. `302` back to `/settings` on
+`max_video_length_seconds`, `temp_storage_path`, `cashfree_env` (persisted
+to the `settings` table), plus optional `OPENAI_API_KEY`,
+`MUSIXMATCH_API_KEY`, `GENIUS_ACCESS_TOKEN`, `CASHFREE_APP_ID`,
+`CASHFREE_SECRET_KEY` (written to `.env`, never the database — blank means
+"leave unchanged", there's no way to read a saved key back out through this
+endpoint). Requires `_csrf`. `302` back to `/settings` on
 success.
 
 ## Job pipeline

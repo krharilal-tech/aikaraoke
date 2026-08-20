@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Request;
 use App\Models\Package;
 use App\Models\Setting;
+use App\Models\User;
 
 final class HomeController extends Controller
 {
@@ -22,9 +24,14 @@ final class HomeController extends Controller
 
     public function pricing(Request $request): void
     {
+        $userId = Auth::id();
+        $user = $userId !== null ? User::find($userId) : null;
+
         $this->view('pricing/index', [
             'pageTitle' => 'Pricing',
+            'pageScript' => 'js/pricing.js',
             'packages' => Package::activeOrdered(),
+            'userPhone' => $user['phone'] ?? null,
         ]);
     }
 }

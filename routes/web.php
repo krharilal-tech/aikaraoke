@@ -7,6 +7,7 @@ use App\Controllers\AuthController;
 use App\Controllers\HomeController;
 use App\Controllers\JobController;
 use App\Controllers\PageController;
+use App\Controllers\PaymentController;
 use App\Controllers\SettingsController;
 use App\Controllers\WorkerCallbackController;
 use App\Core\Router;
@@ -39,6 +40,13 @@ $router->post('/admin/packages/{id}/toggle', [AdminController::class, 'togglePac
 
 $router->get('/settings', [SettingsController::class, 'index']);
 $router->post('/settings', [SettingsController::class, 'update']);
+
+$router->post('/payments/{packageId}/checkout', [PaymentController::class, 'checkout']);
+$router->get('/payments/return', [PaymentController::class, 'returnCallback']);
+// Called by Cashfree, not by a user's browser — authenticated via HMAC
+// signature instead of a session, see
+// PaymentController::requireCashfreeSignature().
+$router->post('/payments/webhook', [PaymentController::class, 'webhook'], auth: false);
 
 $router->get('/jobs', [JobController::class, 'index']);
 $router->post('/jobs', [JobController::class, 'create']);

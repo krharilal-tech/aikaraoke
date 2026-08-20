@@ -149,6 +149,32 @@
           </div>
         </div>
 
+        <div class="glass-card p-4 mb-4">
+          <h6 class="text-uppercase text-secondary small fw-bold mb-3">Payments (Cashfree)</h6>
+
+          <div class="mb-3">
+            <label class="form-label" for="CASHFREE_APP_ID">Cashfree App ID</label>
+            <input type="password" class="form-control form-control-ak" id="CASHFREE_APP_ID" name="CASHFREE_APP_ID"
+                   placeholder="<?= $cashfreeAppIdSet ? '•••••••••••••••••••• (already set — leave blank to keep)' : '' ?>" autocomplete="off">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label" for="CASHFREE_SECRET_KEY">Cashfree Secret Key</label>
+            <input type="password" class="form-control form-control-ak" id="CASHFREE_SECRET_KEY" name="CASHFREE_SECRET_KEY"
+                   placeholder="<?= $cashfreeSecretKeySet ? 'already set — leave blank to keep' : '' ?>" autocomplete="off">
+            <div class="form-text">Also used to verify Cashfree's webhook signature — there's no separate webhook secret to configure. In Cashfree's dashboard, add a webhook pointed at <code><?= e(base_url('payments/webhook')) ?></code>.</div>
+          </div>
+
+          <div class="mb-0">
+            <label class="form-label" for="cashfree_env">Environment</label>
+            <select class="form-control form-control-ak" id="cashfree_env" name="cashfree_env">
+              <option value="sandbox" <?= $settings['cashfree_env'] === 'sandbox' ? 'selected' : '' ?>>Sandbox (test payments)</option>
+              <option value="production" <?= $settings['cashfree_env'] === 'production' ? 'selected' : '' ?>>Production (real payments)</option>
+            </select>
+            <div class="form-text">Keep on Sandbox until you've tested a full purchase end-to-end with Cashfree's test credentials — Production charges real money.</div>
+          </div>
+        </div>
+
         <button type="submit" class="gradient-btn btn btn-lg"><i class="bi bi-check2-circle me-2"></i>Save Settings</button>
       </form>
     </div>

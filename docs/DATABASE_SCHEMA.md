@@ -97,7 +97,7 @@ which live in `.env` — see [CONFIGURATION.md](CONFIGURATION.md)).
 
 Seeded keys: `image_model`, `ffmpeg_path`, `ffprobe_path`, `python_path`,
 `yt_dlp_path`, `demucs_model`, `vocal_bleed_back_percent`, `whisperx_model`,
-`max_video_length_seconds`, `temp_storage_path`.
+`max_video_length_seconds`, `temp_storage_path`, `cashfree_env`.
 
 ## `logs`
 

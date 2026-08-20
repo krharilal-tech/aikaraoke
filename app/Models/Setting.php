@@ -30,6 +30,7 @@ final class Setting extends Model
         'max_video_length_seconds' => '600',
         'temp_storage_path' => 'storage/jobs',
         'youtube_cookies' => '',
+        'cashfree_env' => 'sandbox',
     ];
 
     /**

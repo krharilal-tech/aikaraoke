@@ -18,7 +18,13 @@ use App\Models\Setting;
 final class SettingsController extends Controller
 {
     /** Keys that are secrets and belong in .env, never in the settings table. */
-    private const ENV_KEYS = ['OPENAI_API_KEY', 'MUSIXMATCH_API_KEY', 'GENIUS_ACCESS_TOKEN'];
+    private const ENV_KEYS = [
+        'OPENAI_API_KEY',
+        'MUSIXMATCH_API_KEY',
+        'GENIUS_ACCESS_TOKEN',
+        'CASHFREE_APP_ID',
+        'CASHFREE_SECRET_KEY',
+    ];
 
     /** Keys stored in the `settings` table, mapped to their sanitizer. */
     private const DB_KEYS = [
@@ -37,6 +43,7 @@ final class SettingsController extends Controller
         'max_video_length_seconds',
         'temp_storage_path',
         'youtube_cookies',
+        'cashfree_env',
     ];
 
     /** cookies.txt content routinely runs several KB — everything else here is a short path/model name. */
@@ -55,6 +62,8 @@ final class SettingsController extends Controller
             'openaiKeySet' => env('OPENAI_API_KEY', '') !== '',
             'musixmatchKeySet' => env('MUSIXMATCH_API_KEY', '') !== '',
             'geniusKeySet' => env('GENIUS_ACCESS_TOKEN', '') !== '',
+            'cashfreeAppIdSet' => env('CASHFREE_APP_ID', '') !== '',
+            'cashfreeSecretKeySet' => env('CASHFREE_SECRET_KEY', '') !== '',
             'flash' => flash_message('settings_status'),
         ]);
     }
@@ -90,6 +99,10 @@ final class SettingsController extends Controller
 
         if (isset($dbValues['transcription_language']) && !in_array($dbValues['transcription_language'], self::TRANSCRIPTION_LANGUAGES, true)) {
             $dbValues['transcription_language'] = 'auto';
+        }
+
+        if (isset($dbValues['cashfree_env']) && !in_array($dbValues['cashfree_env'], ['sandbox', 'production'], true)) {
+            $dbValues['cashfree_env'] = 'sandbox';
         }
 
         Setting::setMany($dbValues);

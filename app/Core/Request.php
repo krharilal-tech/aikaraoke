@@ -18,6 +18,8 @@ final class Request
     /** @var array<string, string> route parameters resolved by the Router */
     private array $routeParams = [];
 
+    private string $rawBody = '';
+
     public function __construct()
     {
         $this->query = $_GET;
@@ -33,13 +35,30 @@ final class Request
         $contentType = $this->server['CONTENT_TYPE'] ?? '';
 
         if (str_contains($contentType, 'application/json')) {
-            $raw = file_get_contents('php://input');
-            $decoded = json_decode($raw ?: '{}', true);
+            // Cached rather than re-read: php://input is only reliably
+            // readable once, and a webhook signature check (e.g.
+            // PaymentController's Cashfree verification) needs these exact
+            // bytes — re-serializing the decoded array below isn't
+            // guaranteed byte-identical to what the sender actually signed
+            // (key order/whitespace can differ).
+            $this->rawBody = file_get_contents('php://input') ?: '';
+            $decoded = json_decode($this->rawBody ?: '{}', true);
 
             return is_array($decoded) ? $decoded : [];
         }
 
         return $_POST;
+    }
+
+    /**
+     * The exact raw request body bytes, for callers that need to verify a
+     * signature computed over the original payload rather than the
+     * JSON-decoded (and PHP-re-encodable, but not byte-identical) array.
+     * Empty for non-JSON requests, since parseBody() never populates it.
+     */
+    public function rawBody(): string
+    {
+        return $this->rawBody;
     }
 
     public function method(): string
