@@ -60,7 +60,15 @@ final class JobService
 
         $this->spawnWorker($jobId, $youtubeUrl, $keepVocals, $language);
 
-        return Job::find($jobId) ?? [];
+        $job = Job::find($jobId) ?? [];
+
+        $owner = $userId !== null ? User::find($userId) : null;
+        AdminNotifier::jobCreated(
+            $job !== [] ? $job : ['id' => $jobId, 'youtube_url' => $youtubeUrl, 'keep_vocals' => $keepVocals ? 1 : 0],
+            $owner['email'] ?? null
+        );
+
+        return $job;
     }
 
     /**

@@ -9,6 +9,7 @@ use App\Models\Credit;
 use App\Models\Package;
 use App\Models\PaymentOrder;
 use App\Models\Setting;
+use App\Models\User;
 use RuntimeException;
 
 /**
@@ -114,6 +115,10 @@ final class PaymentService
             'user_id' => $order['user_id'],
             'credits' => $order['credits'],
         ]);
+
+        $buyer = User::find((int) $order['user_id']);
+        $package = isset($order['package_id']) ? Package::find((int) $order['package_id']) : null;
+        AdminNotifier::purchaseCompleted($order, (string) ($buyer['email'] ?? 'unknown'), $package['name'] ?? null);
     }
 
     /**

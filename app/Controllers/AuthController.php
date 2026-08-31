@@ -14,6 +14,7 @@ use App\Core\Sanitizer;
 use App\Core\Session;
 use App\Models\Credit;
 use App\Models\User;
+use App\Services\AdminNotifier;
 use App\Services\GoogleOAuthService;
 use App\Services\SignupGuard;
 use Throwable;
@@ -93,6 +94,8 @@ final class AuthController extends Controller
 
         $userId = (int) User::createUser($email, $password, 'user', $name);
         Credit::grant($userId, self::SIGNUP_BONUS_CREDITS, Credit::REASON_SIGNUP_BONUS);
+
+        AdminNotifier::userRegistered($userId, $email, $name, 'password');
 
         Auth::login($userId);
 
@@ -181,6 +184,7 @@ final class AuthController extends Controller
 
         if ($isNewUser) {
             Credit::grant((int) $user['id'], self::SIGNUP_BONUS_CREDITS, Credit::REASON_SIGNUP_BONUS);
+            AdminNotifier::userRegistered((int) $user['id'], (string) $user['email'], $user['name'] ?? null, 'google');
         }
 
         Auth::login((int) $user['id']);
