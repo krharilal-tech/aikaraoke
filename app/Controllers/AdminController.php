@@ -58,6 +58,36 @@ final class AdminController extends Controller
         $this->redirect(base_url('admin/users'));
     }
 
+    public function toggleBlock(Request $request): void
+    {
+        $this->requireAdmin();
+        $this->requireCsrf($request);
+
+        $userId = Sanitizer::int($request->param('id'));
+        $user = User::find($userId);
+
+        if ($user === null) {
+            Response::notFound('User not found.');
+        }
+
+        if ((int) $user['id'] === Auth::id()) {
+            Session::flash('admin_status', ['type' => 'error', 'message' => 'You cannot block your own account.']);
+            $this->redirect(base_url('admin/users'));
+        }
+
+        $block = ($user['status'] ?? 'active') !== 'blocked';
+        $reason = trim(Sanitizer::string($request->input('reason', ''), 190));
+
+        User::setBlocked($userId, $block, $reason !== '' ? $reason : null);
+
+        Session::flash('admin_status', [
+            'type' => 'success',
+            'message' => ($block ? 'Blocked ' : 'Unblocked ') . $user['email'] . '.',
+        ]);
+
+        $this->redirect(base_url('admin/users'));
+    }
+
     public function packages(Request $request): void
     {
         $this->requireAdmin();

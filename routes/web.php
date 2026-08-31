@@ -33,6 +33,7 @@ $router->get('/contact', [PageController::class, 'contact'], auth: false);
 
 $router->get('/admin/users', [AdminController::class, 'users']);
 $router->post('/admin/users/{id}/credits', [AdminController::class, 'adjustCredits']);
+$router->post('/admin/users/{id}/block', [AdminController::class, 'toggleBlock']);
 $router->get('/admin/packages', [AdminController::class, 'packages']);
 $router->post('/admin/packages', [AdminController::class, 'createPackage']);
 $router->post('/admin/packages/{id}', [AdminController::class, 'updatePackage']);

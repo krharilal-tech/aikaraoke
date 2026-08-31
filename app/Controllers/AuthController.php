@@ -15,6 +15,7 @@ use App\Core\Session;
 use App\Models\Credit;
 use App\Models\User;
 use App\Services\GoogleOAuthService;
+use App\Services\SignupGuard;
 use Throwable;
 
 final class AuthController extends Controller
@@ -30,7 +31,9 @@ final class AuthController extends Controller
         $this->view('auth/login', [
             'pageTitle' => 'Sign In',
             'next' => (string) $request->input('next', ''),
-            'error' => null,
+            'error' => $request->input('suspended') !== null
+                ? 'This account has been suspended. Contact support if you believe this is a mistake.'
+                : null,
             'googleEnabled' => (new GoogleOAuthService())->isConfigured(),
         ], layout: 'layouts/blank');
     }
@@ -45,6 +48,7 @@ final class AuthController extends Controller
             'pageTitle' => 'Create Account',
             'next' => (string) $request->input('next', ''),
             'error' => null,
+            'formLoadedAt' => time(),
             'googleEnabled' => (new GoogleOAuthService())->isConfigured(),
         ], layout: 'layouts/blank');
     }
@@ -75,6 +79,12 @@ final class AuthController extends Controller
 
         if (strlen($password) < 8) {
             $this->renderRegisterError('Password must be at least 8 characters.');
+        }
+
+        $spamReason = SignupGuard::rejectionReason($request->all(), $email, $request->ip());
+
+        if ($spamReason !== null) {
+            $this->renderRegisterError($spamReason);
         }
 
         if (User::findByEmail($email) !== null) {
@@ -163,6 +173,12 @@ final class AuthController extends Controller
             return;
         }
 
+        if (($user['status'] ?? 'active') === 'blocked') {
+            $this->renderLoginError('This account has been suspended. Contact support if you believe this is a mistake.');
+
+            return;
+        }
+
         if ($isNewUser) {
             Credit::grant((int) $user['id'], self::SIGNUP_BONUS_CREDITS, Credit::REASON_SIGNUP_BONUS);
         }
@@ -196,6 +212,10 @@ final class AuthController extends Controller
 
         if ($user === null || !User::verifyPassword($user, $password)) {
             $this->renderLoginError('Invalid email or password.');
+        }
+
+        if (($user['status'] ?? 'active') === 'blocked') {
+            $this->renderLoginError('This account has been suspended. Contact support if you believe this is a mistake.');
         }
 
         Auth::login((int) $user['id']);
@@ -242,6 +262,7 @@ final class AuthController extends Controller
             'pageTitle' => 'Create Account',
             'next' => '',
             'error' => $message,
+            'formLoadedAt' => time(),
             'googleEnabled' => (new GoogleOAuthService())->isConfigured(),
         ], layout: 'layouts/blank');
 

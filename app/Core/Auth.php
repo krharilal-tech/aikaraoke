@@ -50,4 +50,43 @@ final class Auth
 
         return $row !== null && $row['role'] === 'admin';
     }
+
+    /**
+     * Runs once per request (see Application::run()). If the logged-in
+     * user's row has since been blocked — or has vanished entirely — the
+     * session is destroyed and the request is stopped, so a block takes
+     * effect immediately rather than only at their next login.
+     */
+    public static function enforceNotBlocked(Request $request): void
+    {
+        $id = self::id();
+
+        if ($id === null) {
+            return;
+        }
+
+        try {
+            $row = Database::instance()->fetchOne('SELECT `status` FROM `users` WHERE `id` = ?', [$id]);
+        } catch (\Throwable $e) {
+            // Fail open: if this query can't run (most likely the 006
+            // migration hasn't been applied yet), don't take every
+            // authenticated page down over it. Blocking simply won't take
+            // effect until the `status` column exists.
+            Logger::warning('Auth::enforceNotBlocked skipped', ['error' => $e->getMessage()]);
+
+            return;
+        }
+
+        if ($row !== null && $row['status'] !== 'blocked') {
+            return;
+        }
+
+        self::logout();
+
+        if ($request->isAjax()) {
+            Response::json(['success' => false, 'message' => 'Your account has been suspended.'], 403);
+        }
+
+        Response::redirect(base_url('login') . '?suspended=1');
+    }
 }

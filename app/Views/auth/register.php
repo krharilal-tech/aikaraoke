@@ -25,6 +25,12 @@
         <form method="post" action="<?= e(base_url('register')) ?>">
           <?= csrf_field() ?>
           <input type="hidden" name="next" value="<?= e($next) ?>">
+          <input type="hidden" name="form_loaded_at" value="<?= (int) ($formLoadedAt ?? 0) ?>">
+          <?php /* Honeypot: hidden from people, filled in by spam bots — see App\Services\SignupGuard. */ ?>
+          <div aria-hidden="true" style="position:absolute; left:-9999px; top:-9999px; height:0; overflow:hidden;">
+            <label for="company_website">Company website (leave this blank)</label>
+            <input type="text" id="company_website" name="company_website" tabindex="-1" autocomplete="off">
+          </div>
           <div class="mb-3">
             <label class="form-label" for="name">Name</label>
             <input type="text" class="form-control form-control-ak" id="name" name="name" required autofocus>

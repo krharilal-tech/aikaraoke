@@ -49,6 +49,7 @@ final class Application
     public static function run(Router $router): void
     {
         $request = new Request();
+        Auth::enforceNotBlocked($request);
         $router->dispatch($request);
     }
 }

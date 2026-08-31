@@ -66,6 +66,21 @@ final class User extends Model
     }
 
     /**
+     * Blocks or unblocks an account. A blocked user can't log in and has
+     * any live session torn down on their next request
+     * (App\Core\Auth::enforceNotBlocked()). Nothing is deleted, so the row
+     * — and its credit ledger and jobs — stays intact for the audit trail.
+     */
+    public static function setBlocked(int $userId, bool $blocked, ?string $reason = null): void
+    {
+        static::update($userId, [
+            'status' => $blocked ? 'blocked' : 'active',
+            'blocked_at' => $blocked ? gmdate('Y-m-d H:i:s') : null,
+            'blocked_reason' => $blocked ? $reason : null,
+        ]);
+    }
+
+    /**
      * Every user plus their current credit balance in one query, for the
      * admin user list — an N+1 of Credit::balance() per row would work but
      * doesn't need to when this is one join.
