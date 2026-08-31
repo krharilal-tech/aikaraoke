@@ -106,6 +106,10 @@ final class JobController extends Controller
             'pageScript' => 'js/job-progress.js',
             'job' => $job,
             'stages' => Job::pipelineStages(),
+            // The step-by-step worker log is operator diagnostics, not
+            // something a normal user should see — hidden here and stripped
+            // from the status payload in status() below.
+            'isAdmin' => Auth::isAdmin(),
         ]);
     }
 
@@ -119,6 +123,11 @@ final class JobController extends Controller
         }
 
         $status = $this->jobService->getStatus($id);
+
+        // The verbose worker log is for operators only.
+        if (!Auth::isAdmin()) {
+            $status['logs'] = [];
+        }
 
         $this->json(['success' => true, ...$status]);
     }

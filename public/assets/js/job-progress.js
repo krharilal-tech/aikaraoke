@@ -65,6 +65,12 @@
     }
 
     const $console = $('#logConsole');
+
+    // Non-admin users don't get the log console rendered at all.
+    if ($console.length === 0) {
+      return;
+    }
+
     $console.text(logs.join('\n'));
     $console.scrollTop($console[0].scrollHeight);
   }

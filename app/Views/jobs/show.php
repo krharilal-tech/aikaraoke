@@ -52,8 +52,10 @@
           </div>
         </div>
 
-        <h6 class="text-uppercase text-secondary small fw-bold mt-4 mb-2">Processing Log</h6>
-        <div class="log-console" id="logConsole"></div>
+        <?php if (!empty($isAdmin)): ?>
+          <h6 class="text-uppercase text-secondary small fw-bold mt-4 mb-2">Processing Log</h6>
+          <div class="log-console" id="logConsole"></div>
+        <?php endif; ?>
       </div>
 
     </div>
