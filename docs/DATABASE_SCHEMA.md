@@ -12,8 +12,13 @@ Admin accounts. Single-role model (`admin`/`user`), session-based auth
 |---|---|---|
 | `id` | BIGINT UNSIGNED PK | |
 | `email` | VARCHAR(190) UNIQUE | login identifier |
-| `password_hash` | VARCHAR(255) | `password_hash()` (bcrypt/argon, PHP default) |
+| `name` | VARCHAR(190) NULL | from registration or the Google profile (migration 002) |
+| `password_hash` | VARCHAR(255) NULL | `password_hash()` (bcrypt/argon, PHP default); NULL for Google-only accounts (migration 002) |
+| `google_id` | VARCHAR(255) NULL UNIQUE | links a Google login to its account (migration 002) |
 | `role` | ENUM('admin','user') | |
+| `status` | ENUM('active','blocked') | `blocked` bars login and kills any live session — `App\Core\Auth::enforceNotBlocked()` (migration 006) |
+| `blocked_at` | DATETIME NULL | when an admin blocked the account (migration 006) |
+| `blocked_reason` | VARCHAR(190) NULL | optional admin note (migration 006) |
 | `created_at`, `updated_at` | DATETIME | |
 
 ## `jobs`
