@@ -3,7 +3,7 @@
     <div class="row align-items-center g-5">
       <div class="col-lg-7">
         <span class="badge rounded-pill badge-tint mb-3 px-3 py-2">
-          <i class="bi bi-stars text-gradient me-1"></i> AI-powered karaoke, end to end
+          <i class="bi bi-stars text-gradient me-1"></i> The Smarter Way to Make Karaoke Online
         </span>
         <h1 class="hero-title mb-3">Turn any YouTube song<br>into a karaoke video.</h1>
         <p class="hero-subtitle mb-4">
