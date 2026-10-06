@@ -13,7 +13,7 @@ $steps = [
     ['bi-youtube', 'YouTube link'],
     ['bi-soundwave', 'Vocals removed'],
     ['bi-card-text', 'Lyrics synced'],
-    ['bi-image', 'AI background'],
+    ['bi-image', 'Background added'],
     ['bi-play-btn', 'Karaoke video'],
 ];
 ?>

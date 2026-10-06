@@ -7,8 +7,8 @@
         </span>
         <h1 class="hero-title mb-3">Turn any YouTube song<br>into a karaoke video.</h1>
         <p class="hero-subtitle mb-4">
-          Paste a link. We separate the vocals, sync the lyrics word-by-word, generate an
-          original AI background, and render a studio-quality karaoke MP4 &mdash; no editing required.
+          Paste a link. We separate the vocals, sync the lyrics word-by-word, add a video
+          background, and render a studio-quality karaoke MP4 &mdash; no editing required.
         </p>
 
         <div class="glass-card p-4 p-md-5" id="generateCard">
@@ -72,14 +72,14 @@
               <span class="step-icon"><i class="bi bi-soundwave"></i></span>
               <div>
                 <div class="fw-semibold">2. AI does the work</div>
-                <div class="text-secondary small">Vocal removal, lyric sync, and background art &mdash; automatically.</div>
+                <div class="text-secondary small">Vocal removal, lyric sync, and video background &mdash; automatically.</div>
               </div>
             </div>
             <div class="d-flex align-items-start gap-3">
               <span class="step-icon"><i class="bi bi-image"></i></span>
               <div>
-                <div class="fw-semibold">3. Get an AI background</div>
-                <div class="text-secondary small">Original artwork generated from the song's title and lyrics.</div>
+                <div class="fw-semibold">3. Background added</div>
+                <div class="text-secondary small">A background image is picked for you automatically.</div>
               </div>
             </div>
             <div class="d-flex align-items-start gap-3">

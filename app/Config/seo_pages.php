@@ -19,7 +19,7 @@ return [
             'blurb' => 'Create karaoke videos with AI.',
             'icon' => 'bi-mic',
             'title' => 'AI Karaoke Maker – Create Karaoke Videos with AI | KaraokAI',
-            'description' => 'Create karaoke videos with AI using KaraokAI. Turn songs into karaoke tracks with separated vocals, synchronized lyrics and AI-generated backgrounds.',
+            'description' => 'Create karaoke videos with AI using KaraokAI. Turn songs into karaoke tracks with separated vocals, synchronized lyrics and ready-made video backgrounds.',
         ],
         'youtube-to-karaoke' => [
             'path' => 'youtube-to-karaoke',
@@ -27,7 +27,7 @@ return [
             'blurb' => 'Turn a YouTube song into a karaoke video.',
             'icon' => 'bi-youtube',
             'title' => 'YouTube to Karaoke – Turn Any Song Into a Karaoke Video | KaraokAI',
-            'description' => 'Turn a YouTube song into a karaoke video with KaraokAI. Separate vocals, generate synchronized lyrics and add an AI background to create your karaoke video.',
+            'description' => 'Turn a YouTube song into a karaoke video with KaraokAI. Separate vocals, generate synchronized lyrics and get a ready-to-sing karaoke video in 1080p.',
         ],
         'karaoke-video-maker' => [
             'path' => 'karaoke-video-maker',
@@ -35,7 +35,7 @@ return [
             'blurb' => 'Create karaoke videos with synchronized lyrics.',
             'icon' => 'bi-film',
             'title' => 'Karaoke Video Maker – Create Karaoke Videos with AI | KaraokAI',
-            'description' => 'Create karaoke videos with AI using KaraokAI. Add synchronized lyrics, instrumental music and AI-generated backgrounds to create your own karaoke videos.',
+            'description' => 'Create karaoke videos with AI using KaraokAI. Add synchronized lyrics, instrumental music and a video background to create your own karaoke videos.',
         ],
         'karaoke-generator' => [
             'path' => 'karaoke-generator',

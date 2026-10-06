@@ -23,9 +23,9 @@ $steps = [
         'shot' => ['lyrics-synchronized.webp', 'Karaoke video frame with the current lyric line highlighted word by word', 'Lyrics are timed word by word, not just line by line.', 'bi-card-text'],
     ],
     [
-        'title' => 'Get an AI-Generated Background',
-        'text' => 'Using the song’s title and lyrics, KaraokAI writes image prompts and generates original background art for your video, so every karaoke video gets a scene that suits its song. The background is picked automatically, so rendering starts without waiting on you.',
-        'shot' => ['ai-background.webp', 'AI-generated background artwork created for a karaoke video', 'Background art is generated from the song’s title and lyrics.', 'bi-image'],
+        'title' => 'Get a Video Background',
+        'text' => 'KaraokAI picks a background image for your video from its own library of backgrounds. It happens automatically, so rendering starts without waiting on you.',
+        'shot' => ['video-background.webp', 'Background image used behind the lyrics in a KaraokAI karaoke video', 'A background is picked automatically for each video.', 'bi-image'],
     ],
     [
         'title' => 'Generate Your Karaoke Video',
@@ -46,7 +46,7 @@ $faqs = [
     ],
     [
         'q' => 'How does YouTube-to-karaoke conversion work?',
-        'a' => 'KaraokAI downloads the audio of the video, separates the vocals from the music with Demucs, finds or transcribes the lyrics, times every word with WhisperX, generates an AI background, and renders everything into a karaoke video with FFmpeg. Each stage is shown live on the progress page.',
+        'a' => 'KaraokAI downloads the audio of the video, separates the vocals from the music with Demucs, finds or transcribes the lyrics, times every word with WhisperX, adds a background image, and renders everything into a karaoke video with FFmpeg. Each stage is shown live on the progress page.',
     ],
     [
         'q' => 'Does KaraokAI remove vocals automatically?',
@@ -62,7 +62,7 @@ $faqs = [
     ],
     [
         'q' => 'Can I choose a background?',
-        'a' => 'Not manually right now. KaraokAI generates original background art from the song’s title and lyrics and applies it automatically, which keeps the whole process hands-free.',
+        'a' => 'Not right now. KaraokAI picks a background image from its own library automatically, which keeps the whole process hands-free.',
     ],
     [
         'q' => 'Can I preview the result?',
@@ -93,7 +93,7 @@ $faqs = [
         <h1 class="hero-title mb-3">YouTube to Karaoke: Turn Any Song Into a Karaoke Video</h1>
         <p class="hero-subtitle mb-4">
           Turn a YouTube song into a karaoke video with AI. Paste a link and KaraokAI removes the vocals,
-          syncs the lyrics word by word, adds an AI-generated background and hands you a ready-to-sing MP4.
+          syncs the lyrics word by word, adds a video background and hands you a ready-to-sing MP4.
         </p>
         <div class="d-flex flex-wrap gap-2 mb-3">
           <a href="<?= e(base_url('/')) ?>#generateCard" class="gradient-btn btn btn-lg">
@@ -150,7 +150,7 @@ $faqs = [
               ['bi-soundwave', 'AI vocal separation', 'Demucs splits voice from music, so the instrumental keeps the original arrangement.'],
               ['bi-card-text', 'Word-level lyric sync', 'Lyrics are found or transcribed, then each word is timed to the vocal track.'],
               ['bi-translate', 'Indian-language support', 'Tamil, Malayalam, Hindi and English, with auto-detect if you’re not sure.'],
-              ['bi-image', 'Original backgrounds', 'Each video gets AI-generated artwork based on the song instead of a stock loop.'],
+              ['bi-image', 'A moving background', 'A background image with a slow pan-and-zoom, so the video never sits on a static frame.'],
               ['bi-file-earmark-play', 'Ready-to-play MP4', 'A 1080p file that plays on a TV, laptop or phone without any karaoke software.'],
           ] as [$icon, $title, $text]): ?>
             <div class="col-sm-6 col-lg-4">
@@ -178,7 +178,7 @@ $faqs = [
                 ['bi-soundwave', 'Vocal separation', 'Demucs splits vocals and instrumental'],
                 ['bi-card-text', 'Lyrics', 'Lyrics databases, or WhisperX transcription'],
                 ['bi-clock', 'Synchronization', 'WhisperX times each word'],
-                ['bi-image', 'AI background', 'Artwork generated from title and lyrics'],
+                ['bi-image', 'Background', 'Picked automatically from our library'],
                 ['bi-film', 'Karaoke video', '1080p MP4 rendered with FFmpeg'],
             ] as [$icon, $label, $detail]): ?>
               <li>
@@ -213,7 +213,7 @@ $faqs = [
               <tr><th scope="row">Lyrics</th><td>Typed in by the track’s creator</td><td>Looked up automatically, or transcribed from the vocals</td></tr>
               <tr><th scope="row">Synchronization</th><td>Timed by hand, quality varies</td><td>Word-level timing from forced alignment</td></tr>
               <tr><th scope="row">Video creation</th><td>Fixed — you get what was uploaded</td><td>Rendered fresh for every song</td></tr>
-              <tr><th scope="row">Background</th><td>Usually a generic loop or plain colour</td><td>AI artwork generated from the song</td></tr>
+              <tr><th scope="row">Background</th><td>Usually a generic loop or plain colour</td><td>Added automatically, with a slow pan-and-zoom</td></tr>
               <tr><th scope="row">Customization</th><td>None</td><td>Choose language, karaoke or lyric-video mode</td></tr>
             </tbody>
           </table>
@@ -266,7 +266,7 @@ $faqs = [
       </section>
 
       <?= partial('partials/seo/faq', ['faqs' => $faqs, 'heading' => 'YouTube to Karaoke FAQ']) ?>
-      <?= SeoSchema::script(SeoSchema::howTo('How to turn a YouTube song into a karaoke video', 'Convert a YouTube song into a karaoke video with separated vocals, synchronized lyrics and an AI background using KaraokAI.', $page['path'], $steps)) ?>
+      <?= SeoSchema::script(SeoSchema::howTo('How to turn a YouTube song into a karaoke video', 'Convert a YouTube song into a karaoke video with separated vocals, synchronized lyrics and a video background using KaraokAI.', $page['path'], $steps)) ?>
 
       <p class="mt-4">
         Want to know what else the same pipeline can do? Read about our

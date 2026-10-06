@@ -24,7 +24,7 @@ $faqs = [
     ],
     [
         'q' => 'Do I get an audio file or a video?',
-        'a' => 'A video: a 1080p MP4 with the instrumental, an AI background and highlighted lyrics. Separate audio-only downloads aren’t offered.',
+        'a' => 'A video: a 1080p MP4 with the instrumental, a background image and highlighted lyrics. Separate audio-only downloads aren’t offered.',
     ],
     [
         'q' => 'How many karaoke songs can I generate?',
@@ -78,7 +78,7 @@ $faqs = [
                 ['bi-music-note-beamed', 'Instrumental track', 'Everything except the vocal'],
                 ['bi-card-text', 'Lyrics', 'Lyrics databases or WhisperX transcription'],
                 ['bi-clock', 'Synchronization', 'Each word timed to the vocal'],
-                ['bi-film', 'Video generation', 'AI background + lyrics → MP4'],
+                ['bi-film', 'Video generation', 'Background + lyrics → MP4'],
             ] as [$icon, $label, $detail]): ?>
               <li>
                 <span class="step-icon"><i class="bi <?= $icon ?>"></i></span>
@@ -111,8 +111,8 @@ $faqs = [
       <section class="seo-section" aria-labelledby="video-heading">
         <h2 id="video-heading" class="seo-h2">Create a Karaoke Video</h2>
         <p>
-          The generated karaoke always comes as a finished video — 1920×1080, with word-by-word highlighting and AI
-          background art — rather than a bare audio file you’d still need to put lyrics on. You can also generate a
+          The generated karaoke always comes as a finished video — 1920×1080, with word-by-word highlighting and a
+          background image — rather than a bare audio file you’d still need to put lyrics on. You can also generate a
           lyric video that keeps the original vocals. Read more about the output on the
           <a href="<?= e(base_url('karaoke-video-maker')) ?>">karaoke video maker</a> page.
         </p>
