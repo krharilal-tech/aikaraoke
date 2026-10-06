@@ -332,6 +332,228 @@ video.karaoke-preview {
   box-shadow: 0 12px 40px rgba(43, 27, 14, 0.25);
 }
 
+/* ---- SEO landing pages ---------------------------------------------- */
+.seo-hero {
+  padding: 3rem 0 1rem;
+}
+
+.seo-breadcrumb .breadcrumb-item a {
+  color: var(--ak-saffron-strong);
+  text-decoration: none;
+}
+
+.seo-breadcrumb .breadcrumb-item.active {
+  color: var(--ak-muted);
+}
+
+.seo-section {
+  margin-top: 3.5rem;
+}
+
+.seo-h2 {
+  font-weight: 800;
+  font-size: clamp(1.4rem, 3vw, 1.85rem);
+  line-height: 1.25;
+  margin-bottom: 1rem;
+}
+
+.seo-section h3 {
+  font-size: 1.12rem;
+  font-weight: 700;
+}
+
+.seo-prose p,
+.seo-prose li {
+  line-height: 1.7;
+}
+
+.seo-prose a {
+  color: var(--ak-saffron-strong);
+}
+
+.check-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.check-list li {
+  position: relative;
+  padding-left: 1.7rem;
+  margin-bottom: 0.55rem;
+}
+
+.check-list li::before {
+  content: "\F272"; /* bi-check2 */
+  font-family: "bootstrap-icons";
+  position: absolute;
+  left: 0;
+  top: 0.05rem;
+  color: var(--ak-tulsi);
+  font-weight: 700;
+}
+
+.step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--ak-saffron), var(--ak-marigold));
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+/* Pipeline / process strip: wraps on small screens, arrows between steps. */
+.flow-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 1rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.flow-strip li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  position: relative;
+}
+
+@media (min-width: 768px) {
+  .flow-strip li:not(:last-child)::after {
+    content: "\F138"; /* bi-arrow-right */
+    font-family: "bootstrap-icons";
+    position: absolute;
+    right: -0.75rem;
+    top: 0.85rem;
+    color: var(--ak-marigold);
+  }
+}
+
+.flow-strip .flow-detail {
+  color: var(--ak-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+/* Comparison tables stay readable on phones by scrolling inside the card. */
+.compare-table {
+  min-width: 560px;
+  margin-bottom: 0;
+  --bs-table-bg: transparent;
+}
+
+.compare-table thead th {
+  background: var(--ak-tint);
+  color: var(--ak-saffron-strong);
+  border-bottom-color: var(--ak-tint-line);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.compare-table td,
+.compare-table th {
+  border-color: var(--ak-line);
+  padding: 0.8rem 1rem;
+  vertical-align: top;
+}
+
+.compare-table tbody th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Screenshot / demo slots. */
+.media-frame {
+  border: 1px solid var(--ak-line);
+  border-radius: var(--ak-radius);
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 10px 30px rgba(178, 108, 20, 0.08);
+}
+
+.media-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.media-frame figcaption {
+  border-top: 1px solid var(--ak-line);
+}
+
+.media-standin {
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(400px 200px at 20% 10%, rgba(242, 101, 12, 0.14), transparent 70%),
+    radial-gradient(400px 220px at 90% 90%, rgba(217, 162, 0, 0.16), transparent 70%),
+    var(--ak-surface);
+  color: var(--ak-saffron);
+  font-size: 3.5rem;
+}
+
+.demo-standin {
+  background:
+    radial-gradient(500px 220px at 15% 0%, rgba(242, 101, 12, 0.12), transparent 70%),
+    var(--ak-surface);
+}
+
+/* FAQ accordion, themed via Bootstrap's own accordion variables. */
+.faq-accordion {
+  --bs-accordion-bg: rgba(255, 255, 255, 0.72);
+  --bs-accordion-border-color: var(--ak-line);
+  --bs-accordion-border-radius: var(--ak-radius);
+  --bs-accordion-inner-border-radius: var(--ak-radius);
+  --bs-accordion-btn-color: var(--ak-ink);
+  --bs-accordion-active-color: var(--ak-saffron-strong);
+  --bs-accordion-active-bg: var(--ak-tint);
+  --bs-accordion-btn-focus-box-shadow: 0 0 0 0.2rem rgba(242, 101, 12, 0.16);
+}
+
+.faq-accordion .accordion-header {
+  margin: 0;
+}
+
+.faq-accordion .accordion-button {
+  font-weight: 600;
+}
+
+/* "Explore KaraokAI" cards above the footer. */
+.explore-card {
+  color: var(--ak-ink);
+}
+
+a.explore-card:hover,
+a.explore-card:focus-visible {
+  transform: translateY(-3px);
+  border-color: var(--ak-saffron);
+  box-shadow: 0 14px 34px rgba(178, 108, 20, 0.14);
+  color: var(--ak-ink);
+}
+
+.explore-card.is-current {
+  border-color: var(--ak-saffron);
+  box-shadow: 0 0 0 2px rgba(242, 101, 12, 0.18);
+}
+
+.explore-card .step-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1.1rem;
+}
+
 @media (max-width: 767.98px) {
   .hero-section { padding: 3rem 0 2.5rem; }
+  .seo-hero { padding: 2rem 0 0.5rem; }
+  .seo-section { margin-top: 2.5rem; }
 }

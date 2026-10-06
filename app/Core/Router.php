@@ -84,6 +84,20 @@ final class Router
             }
         }
 
+        // Routes are registered without a trailing slash — 301 "/foo/" to
+        // "/foo" so each page has exactly one indexable URL instead of a
+        // 404 (or a duplicate) for the slash variant.
+        if ($request->method() === 'GET' && $path !== '/' && str_ends_with($path, '/')) {
+            $trimmed = rtrim($path, '/');
+
+            foreach ($this->routes as $route) {
+                if ($route['method'] === 'GET' && preg_match($route['regex'], $trimmed) === 1) {
+                    $query = (string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY);
+                    Response::redirect(base_url($trimmed) . ($query !== '' ? '?' . $query : ''), 301);
+                }
+            }
+        }
+
         Response::notFound('404 - Page not found');
     }
 

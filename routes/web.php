@@ -8,6 +8,7 @@ use App\Controllers\HomeController;
 use App\Controllers\JobController;
 use App\Controllers\PageController;
 use App\Controllers\PaymentController;
+use App\Controllers\SeoPageController;
 use App\Controllers\SettingsController;
 use App\Controllers\WorkerCallbackController;
 use App\Core\Router;
@@ -30,6 +31,12 @@ $router->get('/privacy', [PageController::class, 'privacy'], auth: false);
 $router->get('/terms', [PageController::class, 'terms'], auth: false);
 $router->get('/refund-policy', [PageController::class, 'refundPolicy'], auth: false);
 $router->get('/contact', [PageController::class, 'contact'], auth: false);
+
+$router->get('/ai-karaoke-maker', [SeoPageController::class, 'aiKaraokeMaker'], auth: false);
+$router->get('/youtube-to-karaoke', [SeoPageController::class, 'youtubeToKaraoke'], auth: false);
+$router->get('/karaoke-video-maker', [SeoPageController::class, 'karaokeVideoMaker'], auth: false);
+$router->get('/karaoke-generator', [SeoPageController::class, 'karaokeGenerator'], auth: false);
+$router->get('/ai-vocal-remover', [SeoPageController::class, 'aiVocalRemover'], auth: false);
 
 $router->get('/admin/users', [AdminController::class, 'users']);
 $router->post('/admin/users/{id}/credits', [AdminController::class, 'adjustCredits']);

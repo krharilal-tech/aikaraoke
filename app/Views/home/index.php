@@ -78,8 +78,8 @@
             <div class="d-flex align-items-start gap-3">
               <span class="step-icon"><i class="bi bi-image"></i></span>
               <div>
-                <div class="fw-semibold">3. Pick a background</div>
-                <div class="text-secondary small">Choose from 3 unique AI-generated scenes.</div>
+                <div class="fw-semibold">3. Get an AI background</div>
+                <div class="text-secondary small">Original artwork generated from the song's title and lyrics.</div>
               </div>
             </div>
             <div class="d-flex align-items-start gap-3">
@@ -95,3 +95,5 @@
     </div>
   </div>
 </section>
+
+<?= partial('partials/supporting-pages') ?>

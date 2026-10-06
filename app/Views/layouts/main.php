@@ -12,7 +12,37 @@
 
   gtag('config', 'G-LJ1GP9EZBJ');
 </script>
-<title><?= isset($pageTitle) ? e($pageTitle) . ' — ' : '' ?><?= e(config('app.name')) ?></title>
+<?php $documentTitle = $metaTitle ?? ((isset($pageTitle) ? $pageTitle . ' — ' : '') . config('app.name')); ?>
+<title><?= e($documentTitle) ?></title>
+<?php if (isset($metaDescription)): ?>
+<meta name="description" content="<?= e($metaDescription) ?>">
+<?php endif; ?>
+<?php if (isset($canonicalPath)): ?>
+<?php $canonicalUrl = base_url($canonicalPath); ?>
+<link rel="canonical" href="<?= e($canonicalUrl) ?>">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="<?= e(config('seo_pages.brand')) ?>">
+<meta property="og:title" content="<?= e($documentTitle) ?>">
+<meta property="og:url" content="<?= e($canonicalUrl) ?>">
+<?php if (isset($metaDescription)): ?>
+<meta property="og:description" content="<?= e($metaDescription) ?>">
+<?php endif; ?>
+<?php if (isset($ogImage)): ?>
+<meta property="og:image" content="<?= e($ogImage) ?>">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="<?= e($ogImage) ?>">
+<?php else: ?>
+<meta name="twitter:card" content="summary">
+<?php endif; ?>
+<meta name="twitter:title" content="<?= e($documentTitle) ?>">
+<?php if (isset($metaDescription)): ?>
+<meta name="twitter:description" content="<?= e($metaDescription) ?>">
+<?php endif; ?>
+<?php endif; ?>
+<?php foreach ($structuredData ?? [] as $schema): ?>
+<?= \App\Services\SeoSchema::script($schema) ?>
+
+<?php endforeach; ?>
 <meta name="csrf-token" content="<?= e(csrf_token()) ?>">
 <meta name="base-url" content="<?= e(base_url()) ?>">
 <meta name="auth-status" content="<?= \App\Core\Auth::check() ? '1' : '0' ?>">

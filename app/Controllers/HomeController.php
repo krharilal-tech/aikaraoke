@@ -17,6 +17,8 @@ final class HomeController extends Controller
     {
         $this->view('home/index', [
             'pageTitle' => 'Home',
+            'metaDescription' => 'Turn any YouTube song into a karaoke video. KaraokAI removes the vocals, syncs the lyrics word by word and renders a ready-to-sing 1080p MP4.',
+            'canonicalPath' => '/',
             'pageScript' => 'js/home.js',
             'maxDurationSeconds' => (int) Setting::get('max_video_length_seconds', '600'),
         ]);
