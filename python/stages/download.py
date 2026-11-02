@@ -24,8 +24,9 @@ from services.status_writer import StatusWriter
 # cookies. A stale cookie export (Settings -> YouTube Cookies) can get the
 # stream rejected on its own, and neither fallback needs one: mweb is what
 # yt-dlp's PO Token Guide recommends pairing with a provider (Dockerfile),
-# and android_vr doesn't need a PO token at all.
-FALLBACK_PLAYER_CLIENTS = ("mweb", "android_vr")
+# android_vr doesn't need a PO token at all, and android has rescued real
+# jobs here once cookies were out of the way (job 58).
+FALLBACK_PLAYER_CLIENTS = ("mweb", "android_vr", "android")
 
 
 class DownloadError(Exception):
