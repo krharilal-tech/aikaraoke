@@ -17,6 +17,18 @@ import requests
 USER_AGENT = "AIKaraokeMaker/1.0 (+https://github.com/)"
 
 
+# Upload tags left at the end of a title once any "(Official Video)"-style
+# brackets and "|" segments are gone, e.g. "Poove Sempoove - Lyric Video".
+_TRAILING_TITLE_TAGS = re.compile(
+    r"(\s*[-–—]?\s*\b(official|lyrics?|lyrical|video song|full song|video|audio|hd|4k)\b)+\s*$",
+    flags=re.IGNORECASE,
+)
+
+# How far an LRCLIB search result's length may be from the video's before
+# it's treated as a different song or recording.
+_MAX_DURATION_DIFF_SECONDS = 10
+
+
 def guess_artist_title(youtube_title: str, channel: str) -> tuple[str, str]:
     """YouTube gives us one title string and a channel name, not clean
     artist/track fields — this is a best-effort heuristic, not a guarantee."""
@@ -28,20 +40,17 @@ def guess_artist_title(youtube_title: str, channel: str) -> tuple[str, str]:
         flags=re.IGNORECASE,
     ).strip(" -|")
 
+    # Common convention for regional-language uploads, e.g.
+    # "Kanchimmiyo | Cover Song Lyrics | KS Harishankar" — everything after
+    # the first "|" is tagging noise that would otherwise sink a lyrics
+    # provider search (no exact match on the full messy string).
+    cleaned = cleaned.split("|", 1)[0].strip(" -–—") or cleaned
+    cleaned = _TRAILING_TITLE_TAGS.sub("", cleaned).strip(" -–—") or cleaned
+
     for separator in (" - ", " – ", " — "):
         if separator in cleaned:
             artist, _, title = cleaned.partition(separator)
             return artist.strip(), title.strip()
-
-    if "|" in cleaned:
-        # Common convention for regional-language uploads, e.g.
-        # "Kanchimmiyo | Cover Song Lyrics | KS Harishankar" — the real
-        # song title is just the first segment; everything after the
-        # first "|" is tagging noise that would otherwise sink a lyrics
-        # provider search (no exact match on the full messy string).
-        title = cleaned.split("|", 1)[0].strip()
-        if title:
-            return channel.strip(), title
 
     return channel.strip(), cleaned.strip()
 
@@ -75,10 +84,16 @@ def fetch_lrclib(artist: str, title: str, duration_sec: int | None) -> str | Non
 
         if response.status_code == 200:
             results = response.json()
-            if isinstance(results, list) and results:
-                text = results[0].get("plainLyrics") or results[0].get("syncedLyrics")
-                if text:
-                    return _strip_lrc_timestamps(text)
+            if isinstance(results, list):
+                # Free-text search returns its nearest guess even when the
+                # song isn't there, so only trust a result of matching length.
+                for result in results:
+                    if duration_sec and abs(float(result.get("duration") or 0) - duration_sec) > _MAX_DURATION_DIFF_SECONDS:
+                        continue
+
+                    text = result.get("plainLyrics") or result.get("syncedLyrics")
+                    if text:
+                        return _strip_lrc_timestamps(text)
     except (requests.RequestException, ValueError):
         return None
 
@@ -140,6 +155,10 @@ def fetch_genius(artist: str, title: str, access_token: str) -> str | None:
         hits = search.json().get("response", {}).get("hits", [])
 
         if not hits:
+            return None
+
+        # Same as LRCLIB's search: the top hit can be a different song.
+        if title.lower() not in hits[0]["result"].get("title", "").lower():
             return None
 
         song_url = hits[0]["result"]["url"]

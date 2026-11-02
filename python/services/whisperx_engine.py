@@ -11,6 +11,7 @@ import os
 from typing import Any
 
 import whisperx
+from whisperx.alignment import DEFAULT_ALIGN_MODELS_HF, DEFAULT_ALIGN_MODELS_TORCH
 
 
 def _disable_huggingface_symlinks() -> None:
@@ -237,6 +238,13 @@ def _distribute_words_evenly(segments: list[dict[str, Any]]) -> list[dict[str, A
             })
 
     return words
+
+
+def has_alignment_model(language: str) -> bool:
+    """Whether align_words() can find real word boundaries for this language
+    rather than falling back to _distribute_words_evenly()."""
+
+    return language in DEFAULT_ALIGN_MODELS_TORCH or language in DEFAULT_ALIGN_MODELS_HF
 
 
 def align_words(

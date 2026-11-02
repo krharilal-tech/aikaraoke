@@ -17,7 +17,23 @@ from typing import Any
 
 from services import lyrics_providers
 from services.status_writer import StatusWriter
-from services.whisperx_engine import select_device, transcribe
+from services.whisperx_engine import has_alignment_model, select_device, transcribe
+
+
+def _transcribe_vocals(
+    config: dict[str, Any], status: StatusWriter, job_dir: Path, language: str | None
+) -> dict[str, Any]:
+    vocals_path = job_dir / "vocals.wav"
+    whisperx_model = config.get("whisperx_model") or "medium"
+
+    transcription = transcribe(str(vocals_path), whisperx_model, device=select_device(), language=language)
+    segments = transcription.get("segments", [])
+    text = " ".join(segment.get("text", "").strip() for segment in segments).strip()
+    detected_language = transcription.get("language", "en")
+
+    status.log(f"Transcribed {len(segments)} segment(s), language={detected_language}")
+
+    return {"text": text, "source": "whisperx", "segments": segments, "language": detected_language}
 
 
 def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
@@ -59,20 +75,21 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         detected_language = forced_language or lyrics_providers.detect_text_language(text)
         status.log(f"Lyrics text language: {detected_language}")
         result = {"text": text, "source": source, "segments": None, "language": detected_language}
+
+        # Provider text has no timing of its own. Without an alignment model
+        # to find it (Tamil, today), each line would only get its share of
+        # the song's length by character count, which ignores intros and
+        # instrumental breaks. Transcribing gives phrase timings from the
+        # audio, at the cost of the provider's cleaner text.
+        if not has_alignment_model(detected_language):
+            status.log(f"No alignment model for '{detected_language}' — transcribing vocals for real phrase timing")
+            transcribed = _transcribe_vocals(config, status, job_dir, detected_language)
+
+            if transcribed["text"]:
+                result = transcribed
     else:
         status.log("No lyrics match found in any provider — transcribing vocals with WhisperX")
-
-        vocals_path = job_dir / "vocals.wav"
-        whisperx_model = config.get("whisperx_model") or "medium"
-
-        transcription = transcribe(str(vocals_path), whisperx_model, device=select_device(), language=forced_language)
-        segments = transcription.get("segments", [])
-        text = " ".join(segment.get("text", "").strip() for segment in segments).strip()
-        language = transcription.get("language", "en")
-
-        status.log(f"Transcribed {len(segments)} segment(s), language={language}")
-
-        result = {"text": text, "source": "whisperx", "segments": segments, "language": language}
+        result = _transcribe_vocals(config, status, job_dir, forced_language)
 
     (job_dir / "lyrics_raw.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
 
