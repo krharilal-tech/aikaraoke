@@ -13,19 +13,19 @@ from __future__ import annotations
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import yt_dlp
 
 from services.status_writer import StatusWriter
 
 
-# Tried in order when the default client's download fails, always without
-# cookies. A stale cookie export (Settings -> YouTube Cookies) can get the
-# stream rejected on its own, and neither fallback needs one: mweb is what
-# yt-dlp's PO Token Guide recommends pairing with a provider (Dockerfile),
-# android_vr doesn't need a PO token at all, and android has rescued real
-# jobs here once cookies were out of the way (job 58).
+# Tried in order when the default client's metadata fetch or download fails,
+# always without cookies. A stale cookie export (Settings -> YouTube Cookies)
+# can get the stream rejected on its own, and neither fallback needs one: mweb
+# is what yt-dlp's PO Token Guide recommends pairing with a provider
+# (Dockerfile), android_vr doesn't need a PO token at all, and android has
+# rescued real jobs here once cookies were out of the way (job 58).
 FALLBACK_PLAYER_CLIENTS = ("mweb", "android_vr", "android")
 
 
@@ -111,6 +111,43 @@ def _log_deno_availability(status: StatusWriter) -> None:
         status.log(f"[env check] deno --version failed to run: {exc}")
 
 
+def _run_with_fallback_clients(
+    opts: dict[str, Any],
+    status: StatusWriter,
+    label: str,
+    failure: str,
+    action: Callable[[yt_dlp.YoutubeDL], Any],
+) -> Any:
+    """Runs `action` with the default client, then with each fallback client.
+    YouTube's "Sign in to confirm you're not a bot" (job 60) and 403s from the
+    media CDN both depend on the client as well as the worker's IP, so one
+    failure isn't final."""
+
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            return action(ydl)
+    except yt_dlp.utils.DownloadError as exc:
+        last_exc = exc
+
+    for client in FALLBACK_PLAYER_CLIENTS:
+        status.log(f"{failure} ({last_exc}) — retrying via {client} client without cookies…")
+
+        fallback_opts = {
+            **opts,
+            "extractor_args": {"youtube": {"player_client": [client]}},
+            "logger": _YdlLogger(status, f"{label}-{client}-retry"),
+        }
+        fallback_opts.pop("cookiefile", None)
+
+        try:
+            with yt_dlp.YoutubeDL(fallback_opts) as ydl:
+                return action(ydl)
+        except yt_dlp.utils.DownloadError as exc:
+            last_exc = exc
+
+    raise DownloadError(f"{failure}: {last_exc}") from last_exc
+
+
 def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
     url = config["youtube_url"]
     job_dir = Path(config["job_dir"])
@@ -146,11 +183,13 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
     if cookie_file:
         probe_opts["cookiefile"] = cookie_file
 
-    with yt_dlp.YoutubeDL(probe_opts) as probe:
-        try:
-            info = probe.extract_info(url, download=False)
-        except yt_dlp.utils.DownloadError as exc:
-            raise DownloadError(f"Could not fetch video: {exc}") from exc
+    info = _run_with_fallback_clients(
+        probe_opts,
+        status,
+        "probe",
+        "Could not fetch video",
+        lambda ydl: ydl.extract_info(url, download=False),
+    )
 
     duration = int(info.get("duration") or 0)
 
@@ -195,34 +234,9 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
 
     status.log("Downloading best-quality audio…")
 
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-    except yt_dlp.utils.DownloadError as exc:
-        # The media-CDN step can 403 even though metadata (the probe above)
-        # came back fine, since that's a lighter-weight, less-gated request.
-        # Other player clients get their stream URLs differently, so they're
-        # worth trying before giving up.
-        last_exc = exc
-
-        for client in FALLBACK_PLAYER_CLIENTS:
-            status.log(f"Download failed ({last_exc}) — retrying via {client} client without cookies…")
-
-            fallback_opts = {
-                **ydl_opts,
-                "extractor_args": {"youtube": {"player_client": [client]}},
-                "logger": _YdlLogger(status, f"download-{client}-retry"),
-            }
-            fallback_opts.pop("cookiefile", None)
-
-            try:
-                with yt_dlp.YoutubeDL(fallback_opts) as ydl:
-                    ydl.download([url])
-                break
-            except yt_dlp.utils.DownloadError as retry_exc:
-                last_exc = retry_exc
-        else:
-            raise DownloadError(f"Download failed: {last_exc}") from last_exc
+    # The media-CDN step can 403 even though metadata (the probe above) came
+    # back fine, since that's a lighter-weight, less-gated request.
+    _run_with_fallback_clients(ydl_opts, status, "download", "Download failed", lambda ydl: ydl.download([url]))
 
     candidates = sorted(job_dir.glob("source_audio.*"))
 
