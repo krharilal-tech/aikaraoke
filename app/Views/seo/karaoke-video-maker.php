@@ -75,7 +75,7 @@ $faqs = [
         </p>
         <p>
           KaraokAI builds the whole video for you from a YouTube link. The audio is separated, the lyrics are found
-          and timed to the word, a background is added, and everything is rendered into one MP4 file that’s ready
+          and timed, a background is added, and everything is rendered into one MP4 file that’s ready
           to play.
         </p>
       </section>
@@ -86,7 +86,7 @@ $faqs = [
           <?php foreach ([
               ['Add your song', 'Paste a YouTube link to the song and, if you know it, choose its language.'],
               ['Remove vocals', 'AI stem separation (Demucs) splits the voice from the music.'],
-              ['Generate and synchronize lyrics', 'Lyrics are fetched or transcribed, then each word is timed with WhisperX.'],
+              ['Generate and synchronize lyrics', 'Lyrics are fetched or transcribed, then timed automatically.'],
               ['Background', 'A background image is picked from our library and applied automatically.'],
               ['Generate the video', 'FFmpeg renders background, highlighted lyrics and audio into a 1080p MP4.'],
               ['Preview and download', 'Watch it in the browser, then download the file.'],
@@ -129,7 +129,7 @@ $faqs = [
               <h3 class="h6 text-uppercase text-secondary fw-bold mb-3">Done automatically</h3>
               <ul class="check-list mb-0">
                 <li><strong>Background image</strong> picked for you, with a slow pan-and-zoom.</li>
-                <li><strong>Word-by-word highlighting</strong> timed to the original vocal.</li>
+                <li><strong>Word-by-word highlighting</strong>, aligned to the original vocal in English, Hindi and Malayalam, and estimated for Tamil.</li>
                 <li><strong>Full-HD output</strong> at 1920×1080.</li>
               </ul>
             </div>
@@ -171,7 +171,7 @@ $faqs = [
             <tbody>
               <tr><th scope="row">Instrumental</th><td>Source or create it separately</td><td>Separated from the song automatically</td></tr>
               <tr><th scope="row">Lyrics on screen</th><td>Type them into text layers or a subtitle file</td><td>Fetched or transcribed for you</td></tr>
-              <tr><th scope="row">Word highlighting</th><td>Keyframe or time each word manually</td><td>Automatic, from forced alignment</td></tr>
+              <tr><th scope="row">Word highlighting</th><td>Keyframe or time each word manually</td><td>Automatic; estimated for Tamil</td></tr>
               <tr><th scope="row">Background</th><td>Find footage or design one</td><td>Added automatically</td></tr>
               <tr><th scope="row">Export</th><td>Pick codecs and settings yourself</td><td>1080p MP4, ready to play</td></tr>
               <tr><th scope="row">Creative control</th><td>Unlimited — fonts, effects, layout</td><td>Fixed style; language and mode only</td></tr>
@@ -188,7 +188,7 @@ $faqs = [
             <tbody>
               <tr><th scope="row">Song input</th><td>YouTube link (youtube.com, youtu.be, Shorts, YouTube Music), up to <?= $maxDurationMinutes ?> minutes</td></tr>
               <tr><th scope="row">Video output</th><td>MP4 · 1920×1080 · H.264 video · AAC audio</td></tr>
-              <tr><th scope="row">Lyrics languages</th><td>Tamil, Malayalam, Hindi, English, auto-detect</td></tr>
+              <tr><th scope="row">Lyrics languages</th><td>Tamil, Malayalam, Hindi, English, auto-detect. Tamil timing is estimated rather than aligned.</td></tr>
             </tbody>
           </table>
         </div>

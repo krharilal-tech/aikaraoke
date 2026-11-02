@@ -120,8 +120,8 @@ $faqs = [
         <p>
           Karaoke is where vocal removal matters most. You want the real arrangement — the same intro, the same
           instrumental breaks, the same key — without a second singer competing with you. Because KaraokAI separates
-          the original recording, the karaoke version follows the song exactly as you know it, and the lyric highlight
-          is timed to the original singer’s phrasing because it’s measured against the removed vocal itself.
+          the original recording, the karaoke version follows the song exactly as you know it, and in most languages the
+          lyric highlight is aligned to the original singer’s phrasing, using the removed vocal itself.
         </p>
         <p>
           That combination — the instrumental plus timed lyrics in one video — is what the

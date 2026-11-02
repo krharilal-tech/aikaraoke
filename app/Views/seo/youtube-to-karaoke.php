@@ -19,8 +19,8 @@ $steps = [
     ],
     [
         'title' => 'Generate and Synchronize Lyrics',
-        'text' => 'The lyrics are looked up in public lyrics databases first. If no match is found, KaraokAI transcribes them straight from the isolated vocals with WhisperX. Either way, WhisperX then aligns every word to the moment it is sung.',
-        'shot' => ['lyrics-synchronized.webp', 'Karaoke video frame with the current lyric line highlighted word by word', 'Lyrics are timed word by word, not just line by line.', 'bi-card-text'],
+        'text' => 'The lyrics are looked up in public lyrics databases first. If no match is found, KaraokAI transcribes them straight from the isolated vocals with WhisperX. For English, Hindi and Malayalam, WhisperX then aligns each word to the moment it is sung. For Tamil, the timing is estimated instead.',
+        'shot' => ['lyrics-synchronized.webp', 'Karaoke video frame with the current lyric line highlighted word by word', 'The current word is highlighted as the song plays.', 'bi-card-text'],
     ],
     [
         'title' => 'Get a Video Background',
@@ -46,7 +46,7 @@ $faqs = [
     ],
     [
         'q' => 'How does YouTube-to-karaoke conversion work?',
-        'a' => 'KaraokAI downloads the audio of the video, separates the vocals from the music with Demucs, finds or transcribes the lyrics, times every word with WhisperX, adds a background image, and renders everything into a karaoke video with FFmpeg. Each stage is shown live on the progress page.',
+        'a' => 'KaraokAI downloads the audio of the video, separates the vocals from the music with Demucs, finds or transcribes the lyrics, times the lyrics, adds a background image, and renders everything into a karaoke video with FFmpeg. Each stage is shown live on the progress page.',
     ],
     [
         'q' => 'Does KaraokAI remove vocals automatically?',
@@ -58,7 +58,7 @@ $faqs = [
     ],
     [
         'q' => 'Can lyrics be synchronized with the music?',
-        'a' => 'Yes. WhisperX forced alignment matches each word to the point in the vocal track where it is sung, and the video highlights the lyrics word by word. Timing is usually very close; fast or heavily layered vocals can occasionally drift slightly.',
+        'a' => 'Yes, automatically, and the video highlights the lyrics word by word. For English, Hindi and Malayalam, WhisperX forced alignment matches each word to the point in the vocal track where it is sung, though fast or heavily layered vocals can drift slightly. Tamil has no alignment model yet, so its timing is estimated and the highlight is less precise.',
     ],
     [
         'q' => 'Can I choose a background?',
@@ -148,7 +148,7 @@ $faqs = [
           <?php foreach ([
               ['bi-link-45deg', 'One link, no editing', 'Paste a URL and you’re done. No audio editor, no video timeline, no subtitle files.'],
               ['bi-soundwave', 'AI vocal separation', 'Demucs splits voice from music, so the instrumental keeps the original arrangement.'],
-              ['bi-card-text', 'Word-level lyric sync', 'Lyrics are found or transcribed, then each word is timed to the vocal track.'],
+              ['bi-card-text', 'Automatic lyric sync', 'Lyrics are found or transcribed, then timed automatically, with word-level alignment in English, Hindi and Malayalam.'],
               ['bi-translate', 'Indian-language support', 'Tamil, Malayalam, Hindi and English, with auto-detect if you’re not sure.'],
               ['bi-image', 'A moving background', 'A background image with a slow pan-and-zoom, so the video never sits on a static frame.'],
               ['bi-file-earmark-play', 'Ready-to-play MP4', 'A 1080p file that plays on a TV, laptop or phone without any karaoke software.'],
@@ -177,7 +177,7 @@ $faqs = [
                 ['bi-music-note-beamed', 'Audio extraction', 'Converted to clean WAV with FFmpeg'],
                 ['bi-soundwave', 'Vocal separation', 'Demucs splits vocals and instrumental'],
                 ['bi-card-text', 'Lyrics', 'Lyrics databases, or WhisperX transcription'],
-                ['bi-clock', 'Synchronization', 'WhisperX times each word'],
+                ['bi-clock', 'Synchronization', 'Lyrics are timed automatically'],
                 ['bi-image', 'Background', 'Picked automatically from our library'],
                 ['bi-film', 'Karaoke video', '1080p MP4 rendered with FFmpeg'],
             ] as [$icon, $label, $detail]): ?>
@@ -211,7 +211,7 @@ $faqs = [
               <tr><th scope="row">Finding a track</th><td>Only works if someone already made one for that song</td><td>Start from any YouTube upload of the song</td></tr>
               <tr><th scope="row">Vocal removal</th><td>Re-recorded backing track, often a cover version</td><td>AI separation of the original recording</td></tr>
               <tr><th scope="row">Lyrics</th><td>Typed in by the track’s creator</td><td>Looked up automatically, or transcribed from the vocals</td></tr>
-              <tr><th scope="row">Synchronization</th><td>Timed by hand, quality varies</td><td>Word-level timing from forced alignment</td></tr>
+              <tr><th scope="row">Synchronization</th><td>Timed by hand, quality varies</td><td>Automatic; word-level alignment except for Tamil, which is estimated</td></tr>
               <tr><th scope="row">Video creation</th><td>Fixed — you get what was uploaded</td><td>Rendered fresh for every song</td></tr>
               <tr><th scope="row">Background</th><td>Usually a generic loop or plain colour</td><td>Added automatically, with a slow pan-and-zoom</td></tr>
               <tr><th scope="row">Customization</th><td>None</td><td>Choose language, karaoke or lyric-video mode</td></tr>
@@ -247,7 +247,7 @@ $faqs = [
             <tbody>
               <tr><th scope="row">Input</th><td>YouTube links: youtube.com/watch, youtu.be, YouTube Shorts and music.youtube.com. File uploads aren’t supported.</td></tr>
               <tr><th scope="row">Song length</th><td>Up to <?= $maxDurationMinutes ?> minutes</td></tr>
-              <tr><th scope="row">Lyrics languages</th><td>Tamil, Malayalam, Hindi, English, or auto-detect</td></tr>
+              <tr><th scope="row">Lyrics languages</th><td>Tamil, Malayalam, Hindi, English, or auto-detect. Word-level alignment for all except Tamil, whose timing is estimated.</td></tr>
               <tr><th scope="row">Output</th><td>MP4 video, 1920×1080, H.264 video with AAC audio</td></tr>
               <tr><th scope="row">Modes</th><td>Karaoke (vocals removed) or lyric video (original vocals kept)</td></tr>
             </tbody>

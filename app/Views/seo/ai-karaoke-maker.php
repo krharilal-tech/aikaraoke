@@ -20,7 +20,7 @@ $faqs = [
     ],
     [
         'q' => 'Can KaraokAI synchronize lyrics automatically?',
-        'a' => 'Yes. Lyrics are fetched from lyrics databases or transcribed from the vocals, then WhisperX aligns each word to the moment it’s sung. The video highlights lyrics word by word.',
+        'a' => 'Yes. Lyrics are fetched from lyrics databases or transcribed from the vocals, and timed automatically. The video highlights lyrics word by word. In English, Hindi and Malayalam, WhisperX aligns each word to the moment it’s sung; Tamil timing is estimated, so it’s less precise.',
     ],
     [
         'q' => 'Can I create a karaoke video?',
@@ -73,7 +73,7 @@ $faqs = [
         <ul class="check-list">
           <li><strong>Vocal separation</strong> — a model listens to the full mix and splits it into a vocal track and an instrumental (background music) track.</li>
           <li><strong>Lyrics</strong> — found in a lyrics database, or transcribed from the isolated vocals with speech recognition.</li>
-          <li><strong>Lyric synchronization</strong> — each word is aligned to the exact moment it’s sung, so the highlight moves with the singer.</li>
+          <li><strong>Lyric synchronization</strong> — the words are timed to the song, so the highlight moves along with the singing.</li>
           <li><strong>Video generation</strong> — the instrumental, the timed lyrics and a background are rendered into one video file.</li>
           <li><strong>Background</strong> — KaraokAI adds a background image automatically and gives it a slow pan-and-zoom.</li>
         </ul>
@@ -140,8 +140,9 @@ $faqs = [
         <p>
           KaraokAI looks the song up in LRCLIB, Musixmatch and Genius. If none of them has it — common for regional
           and independent music — it transcribes the vocal stem with <strong>WhisperX</strong>, with a dedicated
-          model for Malayalam. WhisperX then performs forced alignment: matching each written word to the audio so it
-          gets its own start and end time.
+          model for Malayalam. For English, Hindi and Malayalam, WhisperX then performs forced alignment: matching each
+          written word to the audio so it gets its own start and end time. There’s no alignment model for Tamil yet, so
+          Tamil timing is estimated and less precise.
         </p>
 
         <h3 class="mt-4">Get a Background</h3>
@@ -170,7 +171,7 @@ $faqs = [
               ['bi-clock', 'Minutes, not an afternoon', 'The steps that take longest by hand — vocal removal and lyric timing — are automated.'],
               ['bi-cpu', 'No audio software', 'Nothing to install or learn. It runs in the browser; the heavy work happens on our GPU servers.'],
               ['bi-music-note-beamed', 'The original arrangement', 'You sing over the real recording, not a cover — useful for songs that were never released as karaoke.'],
-              ['bi-card-text', 'Timing done for you', 'Word-level alignment instead of nudging subtitle timestamps one by one.'],
+              ['bi-card-text', 'Timing done for you', 'Automatic timing instead of nudging subtitle timestamps one by one.'],
               ['bi-image', 'Background included', 'A background image with a slow pan-and-zoom is added for you, so there’s nothing to design.'],
               ['bi-people', 'Simple enough for anyone', 'If you can copy a YouTube link, you can make a karaoke video.'],
           ] as [$icon, $title, $text]): ?>
@@ -194,7 +195,7 @@ $faqs = [
             </thead>
             <tbody>
               <tr><th scope="row">Vocal removal</th><td>Phase-cancellation tricks in an audio editor, or finding a separate backing track</td><td>Automatic AI stem separation (Demucs)</td></tr>
-              <tr><th scope="row">Lyric timing</th><td>Typed and timed line by line in a subtitle editor</td><td>Found or transcribed, then aligned word by word</td></tr>
+              <tr><th scope="row">Lyric timing</th><td>Typed and timed line by line in a subtitle editor</td><td>Found or transcribed, then timed automatically</td></tr>
               <tr><th scope="row">Video editing</th><td>Assembled in a video editor, then exported</td><td>Rendered automatically to MP4</td></tr>
               <tr><th scope="row">Background</th><td>Sourced or designed separately</td><td>Added automatically</td></tr>
               <tr><th scope="row">Processing time</th><td>Often hours of manual work per song</td><td>Automated; depends on song length and server load</td></tr>

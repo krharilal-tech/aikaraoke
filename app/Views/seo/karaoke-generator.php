@@ -77,7 +77,7 @@ $faqs = [
                 ['bi-soundwave', 'Vocal separation', 'Demucs isolates the voice'],
                 ['bi-music-note-beamed', 'Instrumental track', 'Everything except the vocal'],
                 ['bi-card-text', 'Lyrics', 'Lyrics databases or WhisperX transcription'],
-                ['bi-clock', 'Synchronization', 'Each word timed to the vocal'],
+                ['bi-clock', 'Synchronization', 'Lyrics timed automatically'],
                 ['bi-film', 'Video generation', 'Background + lyrics → MP4'],
             ] as [$icon, $label, $detail]): ?>
               <li>
@@ -89,8 +89,9 @@ $faqs = [
           </ol>
         </div>
         <p class="mt-3">
-          The isolated vocal isn’t discarded: it’s what the lyric transcription and word timing are measured against,
-          which is why the highlighting follows the original singer rather than a fixed tempo.
+          The isolated vocal isn’t discarded: it’s what the lyrics are transcribed from and, in English, Hindi and Malayalam,
+          what each word is aligned against, so the highlighting follows the original singer. Tamil timing is estimated, so
+          it’s less precise.
         </p>
       </section>
 
@@ -129,7 +130,7 @@ $faqs = [
               <tr><th scope="row">Song availability</th><td>Limited to the catalogue</td><td>Any song on YouTube up to <?= $maxDurationMinutes ?> minutes</td></tr>
               <tr><th scope="row">Music</th><td>Studio re-recording of the backing</td><td>The original recording with the vocal removed</td></tr>
               <tr><th scope="row">Audio quality</th><td>Clean, purpose-made stems</td><td>Very good on most songs; faint vocal traces possible</td></tr>
-              <tr><th scope="row">Lyrics and timing</th><td>Hand-made by the producer</td><td>Automatic, word-level</td></tr>
+              <tr><th scope="row">Lyrics and timing</th><td>Hand-made by the producer</td><td>Automatic; word-level except for Tamil, which is estimated</td></tr>
               <tr><th scope="row">Regional and older songs</th><td>Often missing</td><td>Supported for Tamil, Malayalam, Hindi and English lyrics</td></tr>
               <tr><th scope="row">Wait time</th><td>Until someone produces it — maybe never</td><td>Generated when you ask</td></tr>
             </tbody>
