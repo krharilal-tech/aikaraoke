@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import html
 import re
-from typing import Any
+import time
+from typing import Any, Callable
 
 import requests
 
@@ -27,6 +28,10 @@ _TRAILING_TITLE_TAGS = re.compile(
 # How far an LRCLIB search result's length may be from the video's before
 # it's treated as a different song or recording.
 _MAX_DURATION_DIFF_SECONDS = 10
+
+# LRCLIB regularly answers 503 "ServerOverloaded" for a few seconds at a time.
+# Without retrying, a song it does have falls through to transcription.
+_LRCLIB_RETRY_DELAYS_SECONDS = (2, 5, 10)
 
 
 def guess_artist_title(youtube_title: str, channel: str) -> tuple[str, str]:
@@ -55,34 +60,57 @@ def guess_artist_title(youtube_title: str, channel: str) -> tuple[str, str]:
     return channel.strip(), cleaned.strip()
 
 
-def fetch_lrclib(artist: str, title: str, duration_sec: int | None) -> str | None:
+def _lrclib_get(endpoint: str, params: dict[str, Any]) -> requests.Response | None:
+    """Returns LRCLIB's answer (a 404 is a real "no match"), or None if it
+    was still overloaded or unreachable after every retry."""
+
+    for delay in (*_LRCLIB_RETRY_DELAYS_SECONDS, None):
+        try:
+            response = requests.get(
+                f"https://lrclib.net/api/{endpoint}",
+                params=params,
+                headers={"User-Agent": USER_AGENT},
+                timeout=10,
+            )
+
+            if response.status_code != 429 and response.status_code < 500:
+                return response
+        except requests.RequestException:
+            pass
+
+        if delay is not None:
+            time.sleep(delay)
+
+    return None
+
+
+def fetch_lrclib(
+    artist: str,
+    title: str,
+    duration_sec: int | None,
+    log: Callable[[str], None] | None = None,
+) -> str | None:
+    unavailable = False
+
     try:
         params = {"track_name": title, "artist_name": artist}
         if duration_sec:
             params["duration"] = duration_sec
 
-        response = requests.get(
-            "https://lrclib.net/api/get",
-            params=params,
-            headers={"User-Agent": USER_AGENT},
-            timeout=10,
-        )
+        response = _lrclib_get("get", params)
+        unavailable = response is None
 
-        if response.status_code == 200:
+        if response is not None and response.status_code == 200:
             data = response.json()
             text = data.get("plainLyrics") or data.get("syncedLyrics")
             if text:
                 return _strip_lrc_timestamps(text)
 
         # Fall back to search when there's no exact match.
-        response = requests.get(
-            "https://lrclib.net/api/search",
-            params={"q": f"{artist} {title}"},
-            headers={"User-Agent": USER_AGENT},
-            timeout=10,
-        )
+        response = _lrclib_get("search", {"q": f"{artist} {title}"})
+        unavailable = unavailable or response is None
 
-        if response.status_code == 200:
+        if response is not None and response.status_code == 200:
             results = response.json()
             if isinstance(results, list):
                 # Free-text search returns its nearest guess even when the
@@ -94,8 +122,11 @@ def fetch_lrclib(artist: str, title: str, duration_sec: int | None) -> str | Non
                     text = result.get("plainLyrics") or result.get("syncedLyrics")
                     if text:
                         return _strip_lrc_timestamps(text)
-    except (requests.RequestException, ValueError):
-        return None
+    except ValueError:
+        pass
+
+    if unavailable and log:
+        log("LRCLIB unavailable (busy or unreachable after retries) — it may still have this song")
 
     return None
 
@@ -229,10 +260,11 @@ def get_lyrics_text(
     duration_sec: int | None,
     musixmatch_api_key: str,
     genius_access_token: str,
+    log: Callable[[str], None] | None = None,
 ) -> tuple[str | None, str | None]:
     """Returns (text, source) from the first provider that has a match."""
 
-    text = fetch_lrclib(artist, title, duration_sec)
+    text = fetch_lrclib(artist, title, duration_sec, log)
     if text:
         return text, "lrclib"
 

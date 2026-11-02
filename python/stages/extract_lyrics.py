@@ -51,6 +51,7 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         metadata.get("duration_sec"),
         config.get("musixmatch_api_key", ""),
         config.get("genius_access_token", ""),
+        status.log,
     )
 
     # "auto" (or unset) leaves WhisperX's own language auto-detection in
@@ -72,7 +73,16 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         # "Synchronizing Lyrics" stage picks its forced-alignment model
         # by this language code, and a wrong one there means loading an
         # alignment model for a language the text isn't even written in.
-        detected_language = forced_language or lyrics_providers.detect_text_language(text)
+        text_language = lyrics_providers.detect_text_language(text)
+        detected_language = forced_language or text_language
+
+        # Tamil lyrics are often published in English letters ("Poove
+        # sempoove..."). The English alignment model can time those by word,
+        # so keep them rather than replacing them with a transcription below.
+        if detected_language == "ta" and text_language == "en":
+            status.log("Tamil song with lyrics in English letters — keeping them and aligning with the English model")
+            detected_language = "en"
+
         status.log(f"Lyrics text language: {detected_language}")
         result = {"text": text, "source": source, "segments": None, "language": detected_language}
 
