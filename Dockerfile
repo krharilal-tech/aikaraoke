@@ -59,12 +59,13 @@ RUN apt-get update \
 # separate compose service — RunPod's GitHub-integration build only
 # builds this single Dockerfile. Version pinned to match the
 # bgutil-ytdlp-pot-provider pip package pinned in requirements.txt; bump
-# both together.
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+# both together. 2.x needs Node >= 22; it also binds to localhost only by
+# default, which is all this single-container setup needs.
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-RUN git clone --depth 1 --single-branch --branch 1.3.1 \
+RUN git clone --depth 1 --single-branch --branch 2.0.2 \
         https://github.com/Brainicism/bgutil-ytdlp-pot-provider.git /opt/bgutil-pot \
     && cd /opt/bgutil-pot/server \
     && npm ci \
@@ -79,9 +80,7 @@ RUN git clone --depth 1 --single-branch --branch 1.3.1 \
 # clearly, which is what "Requested format is not available" actually
 # turned out to mean here. Deno is the runtime yt-dlp enables by default
 # for this — being on PATH is the entire configuration, no extractor-args
-# needed — and is a single static binary, lighter to add than bumping the
-# Node install above to the higher version (>=22) EJS itself would need
-# versus the >=20 the PO token server requires.
+# needed — and is a single static binary.
 ENV DENO_INSTALL=/usr/local/deno
 ENV PATH="${DENO_INSTALL}/bin:${PATH}"
 RUN curl -fsSL https://deno.land/install.sh | sh
