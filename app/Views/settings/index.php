@@ -121,6 +121,17 @@
               it was exported.
             </div>
           </div>
+          <div class="mb-3">
+            <label class="form-label" for="youtube_proxy">YouTube Proxy</label>
+            <input type="password" class="form-control form-control-ak" id="youtube_proxy" name="youtube_proxy" autocomplete="new-password" spellcheck="false" value="<?= e($settings['youtube_proxy']) ?>">
+            <div class="form-text">
+              Sends only the worker's YouTube traffic through this proxy. Leave blank to connect
+              directly. Use a residential proxy with sticky sessions, in the form
+              <code>http://user-NAME-session-{session}-sessionduration-30:PASSWORD@gate.decodo.com:7000</code>.
+              <code>{session}</code> becomes a different value for each job, so each job keeps one IP
+              throughout and the next job gets a new one. Percent-encode any special characters in the password.
+            </div>
+          </div>
         </div>
 
         <div class="glass-card p-4 mb-4">

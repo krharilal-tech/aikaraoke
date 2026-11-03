@@ -14,6 +14,7 @@ import shutil
 import subprocess
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import urlsplit
 
 import yt_dlp
 
@@ -28,9 +29,40 @@ from services.status_writer import StatusWriter
 # rescued real jobs here once cookies were out of the way (job 58).
 FALLBACK_PLAYER_CLIENTS = ("mweb", "android_vr", "android")
 
+# What YouTube refusing the worker looks like, as opposed to a problem with
+# the video itself. Customers see the failure message, so these get a plain
+# explanation instead of yt-dlp's advice about passing cookies.
+_YOUTUBE_BLOCK_MARKERS = ("not a bot", "http error 403")
+_YOUTUBE_BLOCK_MESSAGE = (
+    "YouTube blocked this download from our servers. Any credit used has been "
+    "refunded — please try again in a little while."
+)
+
 
 class DownloadError(Exception):
     pass
+
+
+class _RedactedStatus:
+    """Keeps the proxy's username and password out of the job log. yt-dlp's
+    debug output prints its full options, including the proxy URL."""
+
+    def __init__(self, status: StatusWriter, proxy: str) -> None:
+        self._status = status
+        credentials = urlsplit(proxy).netloc.rpartition("@")[0]
+        self._secrets = [secret for secret in (credentials, credentials.partition(":")[2]) if secret]
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._status, name)
+
+    def redact(self, text: str) -> str:
+        for secret in self._secrets:
+            text = text.replace(secret, "***")
+
+        return text
+
+    def log(self, message: str) -> None:
+        self._status.log(self.redact(message))
 
 
 class _YdlLogger:
@@ -113,7 +145,7 @@ def _log_deno_availability(status: StatusWriter) -> None:
 
 def _run_with_fallback_clients(
     opts: dict[str, Any],
-    status: StatusWriter,
+    status: _RedactedStatus,
     label: str,
     failure: str,
     action: Callable[[yt_dlp.YoutubeDL], Any],
@@ -145,7 +177,15 @@ def _run_with_fallback_clients(
         except yt_dlp.utils.DownloadError as exc:
             last_exc = exc
 
-    raise DownloadError(f"{failure}: {last_exc}") from last_exc
+    details = status.redact(f"{failure}: {last_exc}")
+    status.log(details)
+
+    # "from None": the worker logs this traceback, and the original error
+    # could carry the proxy's credentials.
+    if any(marker in details.lower() for marker in _YOUTUBE_BLOCK_MARKERS):
+        raise DownloadError(_YOUTUBE_BLOCK_MESSAGE) from None
+
+    raise DownloadError(details) from None
 
 
 def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
@@ -153,9 +193,17 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
     job_dir = Path(config["job_dir"])
     max_duration = int(config.get("max_video_length_seconds", 600))
     cookie_file = _write_cookie_file(job_dir, str(config.get("youtube_cookies", "")))
+    # A stream link only works from the IP that requested it, so each job
+    # needs one IP throughout, and its own session so a flagged IP doesn't
+    # follow every later job.
+    proxy = str(config.get("youtube_proxy") or "").strip().replace("{session}", f"job{config.get('job_id')}")
+    status = _RedactedStatus(status, proxy)
 
     status.log(f"[env check] yt-dlp version: {yt_dlp.version.__version__}")
     _log_deno_availability(status)
+
+    if proxy:
+        status.log(f"Using YouTube proxy: {urlsplit(proxy).hostname}")
 
     status.log(f"Fetching metadata for {url}")
 
@@ -182,6 +230,9 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
 
     if cookie_file:
         probe_opts["cookiefile"] = cookie_file
+
+    if proxy:
+        probe_opts["proxy"] = proxy
 
     info = _run_with_fallback_clients(
         probe_opts,
@@ -231,6 +282,9 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
 
     if cookie_file:
         ydl_opts["cookiefile"] = cookie_file
+
+    if proxy:
+        ydl_opts["proxy"] = proxy
 
     status.log("Downloading best-quality audio…")
 

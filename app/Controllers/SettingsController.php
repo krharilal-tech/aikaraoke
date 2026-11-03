@@ -43,6 +43,7 @@ final class SettingsController extends Controller
         'max_video_length_seconds',
         'temp_storage_path',
         'youtube_cookies',
+        'youtube_proxy',
         'cashfree_env',
     ];
 
