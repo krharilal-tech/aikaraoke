@@ -10,8 +10,21 @@ import gc
 import os
 from typing import Any
 
+import numpy as np
 import whisperx
 from whisperx.alignment import DEFAULT_ALIGN_MODELS_HF, DEFAULT_ALIGN_MODELS_TORCH
+
+# whisperx.load_audio() always resamples to this.
+ALIGN_SAMPLE_RATE = 16000
+
+# A line's aligned words must cover this share of its sung time...
+_MIN_LINE_COVERAGE = 0.5
+
+# ...unless it's too short for that to matter.
+_MIN_RESPREAD_SECONDS = 1.0
+
+# Less singing than this in a line's window is noise, not the line.
+_MIN_SUNG_LINE_SECONDS = 0.3
 
 
 def _disable_huggingface_symlinks() -> None:
@@ -238,6 +251,123 @@ def _distribute_words_evenly(segments: list[dict[str, Any]]) -> list[dict[str, A
             })
 
     return words
+
+
+def _loudness(audio: Any) -> Any:
+    """Vocal loudness every 1/20th of a second."""
+
+    hop = ALIGN_SAMPLE_RATE // 20
+    frames = audio[: audio.size - audio.size % hop].reshape(-1, hop)
+
+    return np.sqrt((frames ** 2).mean(axis=1))
+
+
+def _singing_threshold(loudness: Any) -> float:
+    return max(float(np.percentile(loudness, 95)) * 0.1, 1e-4)
+
+
+def _sung_span(loudness: Any, threshold: float, start: float, end: float) -> tuple[float, float] | None:
+    """The first and last moments in [start, end) with singing in them. The
+    threshold is the whole song's, since a soft line is still singing."""
+
+    first_frame = int(start * 20)
+    sung = np.flatnonzero(loudness[first_frame:int(end * 20)] > threshold)
+
+    if sung.size == 0:
+        return None
+
+    return (first_frame + sung[0]) / 20, (first_frame + sung[-1] + 1) / 20
+
+
+def snap_lines_to_singing(audio_path: str, segments: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
+    """Published line times are hand-made, sometimes for a different cut of the
+    song, so a line can be tagged where this recording has no singing. Those
+    lines join the next line that does have singing, and each line's window
+    runs for as long as the singing continues before the next line. Returns
+    (segments, number of lines moved)."""
+
+    loudness = _loudness(whisperx.load_audio(audio_path))
+    threshold = _singing_threshold(loudness)
+    snapped: list[dict[str, Any]] = []
+    waiting: list[str] = []
+    moved = 0
+
+    for index, segment in enumerate(segments):
+        start = float(segment["start"])
+        span = _sung_span(loudness, threshold, start, float(segment["end"]))
+
+        if span is None or span[1] - span[0] < _MIN_SUNG_LINE_SECONDS:
+            waiting.append(str(segment["text"]))
+            moved += 1
+            continue
+
+        next_start = float(segments[index + 1]["start"]) if index + 1 < len(segments) else float(segment["end"])
+        sung = _sung_span(loudness, threshold, start, max(next_start, span[1])) or span
+        snapped.append({"text": " ".join([*waiting, str(segment["text"])]), "start": sung[0], "end": sung[1]})
+        waiting = []
+
+    if waiting and snapped:
+        snapped[-1]["text"] = " ".join([snapped[-1]["text"], *waiting])
+
+    return (snapped, moved) if snapped else (segments, 0)
+
+
+def spread_bunched_lines(
+    audio_path: str,
+    segments: list[dict[str, Any]],
+    words: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], int]:
+    """The alignment models are trained on speech, so on held notes they can
+    squeeze a whole line into its first moments, even when the line itself is
+    in the right place (real example: a 4.4s line aligned into 0.6s). Respreads
+    those lines' words across the sung part of the line, by character count.
+    Returns (words, number of lines respread)."""
+
+    line_lengths = [len(str(segment.get("text", "")).split()) for segment in segments]
+
+    # Alignment can skip words it can't place, and then there's no telling
+    # which line each remaining word belongs to.
+    if sum(line_lengths) != len(words):
+        return words, 0
+
+    loudness = _loudness(whisperx.load_audio(audio_path))
+    threshold = _singing_threshold(loudness)
+    result: list[dict[str, Any]] = []
+    respread = 0
+    position = 0
+
+    for segment, length in zip(segments, line_lengths):
+        line_words = words[position:position + length]
+        position += length
+        span = _sung_span(loudness, threshold, float(segment["start"]), float(segment["end"])) if line_words else None
+
+        if span is None or span[1] - span[0] < _MIN_RESPREAD_SECONDS:
+            result.extend(line_words)
+            continue
+
+        aligned = line_words[-1]["end"] - line_words[0]["start"]
+
+        if aligned >= (span[1] - span[0]) * _MIN_LINE_COVERAGE:
+            result.extend(line_words)
+            continue
+
+        respread += 1
+        total_chars = sum(len(word["word"]) for word in line_words) or 1
+        cursor = span[0]
+
+        for word in line_words:
+            duration = (span[1] - span[0]) * len(word["word"]) / total_chars
+            result.append({"word": word["word"], "start": round(cursor, 3), "end": round(cursor + duration, 3)})
+            cursor += duration
+
+    # Line windows start slightly early, so a line can begin before the last
+    # one's final word ends. Only one word should be highlighted at a time.
+    for word, next_word in zip(result, result[1:]):
+        next_word["start"] = max(next_word["start"], word["start"])
+        next_word["end"] = max(next_word["end"], next_word["start"])
+        word["end"] = min(word["end"], next_word["start"])
+
+    return result, respread
 
 
 def has_alignment_model(language: str) -> bool:

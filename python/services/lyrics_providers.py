@@ -33,6 +33,15 @@ _MAX_DURATION_DIFF_SECONDS = 10
 # Without retrying, a song it does have falls through to transcription.
 _LRCLIB_RETRY_DELAYS_SECONDS = (2, 5, 10)
 
+_LRC_TAG = re.compile(r"\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]")
+
+# LRC times are hand-made, so a line can be tagged slightly after it starts.
+_LRC_LINE_LEAD_SECONDS = 0.5
+
+# The next timestamp can be far away when a line runs into an instrumental
+# break, and a window that long lets a line's last word stretch across it.
+_MAX_LRC_LINE_SECONDS = 15.0
+
 
 def guess_artist_title(youtube_title: str, channel: str) -> tuple[str, str]:
     """YouTube gives us one title string and a channel name, not clean
@@ -90,7 +99,14 @@ def fetch_lrclib(
     duration_sec: int | None,
     log: Callable[[str], None] | None = None,
 ) -> str | None:
+    """Returns the lyrics as published: LRC with line timestamps when LRCLIB
+    has them, since alignment needs to know where each line roughly is."""
+
     unavailable = False
+    plain_text = None
+
+    def duration_diff(result: dict[str, Any]) -> float:
+        return abs(float(result.get("duration") or 0) - duration_sec) if duration_sec else 0.0
 
     try:
         params = {"track_name": title, "artist_name": artist}
@@ -102,11 +118,12 @@ def fetch_lrclib(
 
         if response is not None and response.status_code == 200:
             data = response.json()
-            text = data.get("plainLyrics") or data.get("syncedLyrics")
-            if text:
-                return _strip_lrc_timestamps(text)
+            if data.get("syncedLyrics"):
+                return data["syncedLyrics"]
 
-        # Fall back to search when there's no exact match.
+            plain_text = data.get("plainLyrics")
+
+        # Fall back to search when there's no exact match, or no timed one.
         response = _lrclib_get("search", {"q": f"{artist} {title}"})
         unavailable = unavailable or response is None
 
@@ -115,15 +132,18 @@ def fetch_lrclib(
             if isinstance(results, list):
                 # Free-text search returns its nearest guess even when the
                 # song isn't there, so only trust a result of matching length.
-                for result in results:
-                    if duration_sec and abs(float(result.get("duration") or 0) - duration_sec) > _MAX_DURATION_DIFF_SECONDS:
-                        continue
+                matches = [result for result in results if duration_diff(result) <= _MAX_DURATION_DIFF_SECONDS]
+                synced = [result for result in matches if result.get("syncedLyrics")]
 
-                    text = result.get("plainLyrics") or result.get("syncedLyrics")
-                    if text:
-                        return _strip_lrc_timestamps(text)
+                if synced:
+                    return min(synced, key=duration_diff)["syncedLyrics"]
+
+                plain_text = plain_text or next((result["plainLyrics"] for result in matches if result.get("plainLyrics")), None)
     except ValueError:
         pass
+
+    if plain_text:
+        return plain_text
 
     if unavailable and log:
         log("LRCLIB unavailable (busy or unreachable after retries) — it may still have this song")
@@ -131,12 +151,46 @@ def fetch_lrclib(
     return None
 
 
-def _strip_lrc_timestamps(text: str) -> str:
-    """LRC "synced" lines look like "[00:12.34]word word word" — strip the
-    tag since we only use this as plain text for forced alignment."""
+def parse_lrc_segments(text: str, duration_sec: int | None) -> list[dict[str, Any]] | None:
+    """Turns LRC lines ("[00:12.34]word word") into segments for alignment, or
+    None if the text carries no timestamps. WhisperX only searches for a line's
+    words inside its segment, so these real times are what keep the highlight
+    with the singing across intros and instrumental breaks. Blank LRC lines
+    mark where singing stops."""
 
-    lines = [re.sub(r"^\[\d{2}:\d{2}(\.\d{1,2})?\]\s*", "", line) for line in text.splitlines()]
-    return "\n".join(line for line in lines if line.strip())
+    entries = []
+
+    for line in text.splitlines():
+        tags = _LRC_TAG.findall(line)
+        lyric = _LRC_TAG.sub("", line).strip()
+        entries.extend((int(minutes) * 60 + float(seconds), lyric) for minutes, seconds in tags)
+
+    entries.sort(key=lambda entry: entry[0])
+    segments = []
+
+    for index, (start, lyric) in enumerate(entries):
+        if not lyric:
+            continue
+
+        end = start + _MAX_LRC_LINE_SECONDS
+
+        if index + 1 < len(entries):
+            end = min(end, entries[index + 1][0])
+
+        if duration_sec:
+            end = min(end, float(duration_sec))
+
+        if end > start:
+            segments.append({"text": lyric, "start": max(start - _LRC_LINE_LEAD_SECONDS, 0.0), "end": end})
+
+    return segments or None
+
+
+def _strip_lrc_timestamps(text: str) -> str:
+    """Removes LRC's "[00:12.34]" tags, leaving the lyrics as plain text."""
+
+    lines = [_LRC_TAG.sub("", line).strip() for line in text.splitlines()]
+    return "\n".join(line for line in lines if line)
 
 
 def fetch_musixmatch(artist: str, title: str, api_key: str) -> str | None:
@@ -261,19 +315,20 @@ def get_lyrics_text(
     musixmatch_api_key: str,
     genius_access_token: str,
     log: Callable[[str], None] | None = None,
-) -> tuple[str | None, str | None]:
-    """Returns (text, source) from the first provider that has a match."""
+) -> tuple[str | None, str | None, list[dict[str, Any]] | None]:
+    """Returns (text, source, segments) from the first provider that has a
+    match. segments is None unless the provider published line timing."""
 
     text = fetch_lrclib(artist, title, duration_sec, log)
     if text:
-        return text, "lrclib"
+        return _strip_lrc_timestamps(text), "lrclib", parse_lrc_segments(text, duration_sec)
 
     text = fetch_musixmatch(artist, title, musixmatch_api_key)
     if text:
-        return text, "musixmatch"
+        return text, "musixmatch", None
 
     text = fetch_genius(artist, title, genius_access_token)
     if text:
-        return text, "genius"
+        return text, "genius", None
 
-    return None, None
+    return None, None, None

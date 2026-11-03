@@ -18,7 +18,13 @@ from typing import Any
 
 from services.ffmpeg_utils import probe_duration_seconds
 from services.status_writer import StatusWriter
-from services.whisperx_engine import align_words, build_segments_from_text, select_device
+from services.whisperx_engine import (
+    align_words,
+    build_segments_from_text,
+    select_device,
+    snap_lines_to_singing,
+    spread_bunched_lines,
+)
 
 
 def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
@@ -37,6 +43,12 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         status.log("No lyrics text available — skipping word-level sync")
         words: list[dict[str, Any]] = []
     else:
+        has_line_timing = bool(segments) and source != "whisperx"
+
+        if has_line_timing:
+            segments, moved = snap_lines_to_singing(str(vocals_path), segments)
+            status.log(f"Checked {source}'s timing against the vocals: moved {moved} line(s) with no singing")
+
         if not segments:
             duration = probe_duration_seconds(str(vocals_path), config)
             segments = build_segments_from_text(text, duration)
@@ -47,6 +59,10 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
 
         if used_forced_alignment:
             status.log(f"Aligned {len(words)} word(s)")
+
+            if has_line_timing:
+                words, respread = spread_bunched_lines(str(vocals_path), segments, words)
+                status.log(f"Respread the words of {respread} bunched line(s) across their sung time")
         else:
             status.log(
                 f"No forced-alignment model available for language '{language}' — estimated "

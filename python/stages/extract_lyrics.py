@@ -45,7 +45,7 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
     artist, title = lyrics_providers.guess_artist_title(youtube_title, channel)
     status.log(f"Looking up lyrics for artist=\"{artist}\" title=\"{title}\"")
 
-    text, source = lyrics_providers.get_lyrics_text(
+    text, source, segments = lyrics_providers.get_lyrics_text(
         artist,
         title,
         metadata.get("duration_sec"),
@@ -84,14 +84,17 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
             detected_language = "en"
 
         status.log(f"Lyrics text language: {detected_language}")
-        result = {"text": text, "source": source, "segments": None, "language": detected_language}
+        result = {"text": text, "source": source, "segments": segments, "language": detected_language}
 
-        # Provider text has no timing of its own. Without an alignment model
-        # to find it (Tamil, today), each line would only get its share of
-        # the song's length by character count, which ignores intros and
-        # instrumental breaks. Transcribing gives phrase timings from the
-        # audio, at the cost of the provider's cleaner text.
-        if not has_alignment_model(detected_language):
+        if segments:
+            status.log(f"Using {source}'s timing for {len(segments)} line(s)")
+
+        # Without line timing or an alignment model to find it (Tamil, today),
+        # each line would only get its share of the song's length by character
+        # count, which ignores intros and instrumental breaks. Transcribing
+        # gives phrase timings from the audio, at the cost of the provider's
+        # cleaner text.
+        if not segments and not has_alignment_model(detected_language):
             status.log(f"No alignment model for '{detected_language}' — transcribing vocals for real phrase timing")
             transcribed = _transcribe_vocals(config, status, job_dir, detected_language)
 
