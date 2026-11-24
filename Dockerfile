@@ -105,6 +105,11 @@ COPY python/requirements.txt /app/python/requirements.txt
 # loading — gets GPU support without fighting pip's resolver.
 RUN pip install --no-cache-dir -r python/requirements.txt
 
+# The MMS aligner's weights (~1.2 GB, services/mms_aligner.py), stored in
+# the image so a job never waits on downloading them. Before the code COPY
+# below, so code changes don't make RunPod download them again.
+RUN python -c "import torchaudio; torchaudio.pipelines.MMS_FA.get_model(with_star=True)"
+
 # Preserved as a real python/ subdirectory (not flattened into /app) —
 # handler.py's sys.path.insert(0, .../"python") depends on this exact layout.
 COPY python/ /app/python/

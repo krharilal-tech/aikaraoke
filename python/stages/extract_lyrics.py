@@ -96,10 +96,10 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         text_language = lyrics_providers.detect_text_language(text)
         language = forced_language or text_language
 
-        # Lyrics in English letters are kept as written, and timed with the
-        # English model, which reads those letters.
+        # Lyrics in English letters are kept as written. If the whole-song
+        # aligner fails, WhisperX's English model is the one that reads them.
         if language in _INDIAN_LANGUAGES and text_language == "en":
-            status.log(f"Lyrics for a '{language}' song are in English letters — keeping them and aligning with the English model")
+            status.log(f"Lyrics for a '{language}' song are in English letters — keeping them as typed")
             language = "en"
 
         status.log(f"Lyrics text language: {language}")

@@ -61,6 +61,10 @@ omegaconf==2.3.1
 #     Synchronizing Lyrics stages, used when no lyrics DB has a match) ---
 whisperx==3.8.6
 
+# Converts Malayalam, Tamil and Hindi script to English letters for the MMS
+# aligner (services/mms_aligner.py), which only reads those.
+uroman==1.3.1.1
+
 # transformers is a whisperx transitive dependency already, but is pinned
 # explicitly here because services/malayalam_asr.py imports it directly —
 # generic multilingual Whisper cannot render correct Malayalam script (see
