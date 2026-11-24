@@ -26,7 +26,7 @@ class RenderError(Exception):
 def _escape_for_filter(path: str) -> str:
     """ffmpeg filter-graph option values treat ':' and '\\' specially, so a
     Windows path like "C:\\foo\\bar.ass" needs escaping before it can be
-    passed inside a `subtitles=...` filter argument."""
+    passed inside an `ass=...` filter argument."""
 
     posix = path.replace("\\", "/")
     escaped = posix.replace(":", r"\:")
@@ -85,9 +85,14 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={width}x{height}:fps={FPS}"
     )
 
+    # The "ass" filter, not "subtitles": only it has the shaping option, and
+    # ffmpeg 4.4's "subtitles" filter (Ubuntu's, on RunPod) quietly uses
+    # libass's simple shaping, which leaves Malayalam vowel signs like the
+    # one in "പോൽ" after the consonant instead of around it.
     subtitles_arg = (
-        f"subtitles='{_escape_for_filter(str(ass_path))}'"
+        f"ass='{_escape_for_filter(str(ass_path))}'"
         f":fontsdir='{_escape_for_filter(str(FONTS_DIR))}'"
+        ":shaping=complex"
     )
 
     filter_complex = f"[0:v]{zoompan},format=yuv420p[bg];[bg]{subtitles_arg}[v]"
