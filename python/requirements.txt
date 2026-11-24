@@ -5,7 +5,9 @@
 #   venv/bin/pip install -r requirements.txt           (Linux/Ubuntu)
 
 # --- YouTube download (Downloading stage) ---
-# Bumped again to >=2026.10.26 (Nov 2026) alongside the PO token provider
+# >=2026.11.23 fixes "a.addOnDisposeCallback is not a function" when solving
+# YouTube's signature/n challenges on its new players (yt-dlp issue 18123).
+# Before that, >=2026.10.26 (Nov 2026) went alongside the PO token provider
 # below, for the same 403 family. Originally bumped from >=2024.8.6 (Aug
 # 2026): YouTube's extraction/anti-bot scheme
 # shifts often enough that yt-dlp needs frequent releases to keep up, and
@@ -13,7 +15,7 @@
 # has cached this layer — a stale-yt-dlp build kept failing downloads with
 # "HTTP Error 403: Forbidden" on the actual media URL (metadata fetch still
 # worked) until this floor was raised to force a fresh install.
-yt-dlp>=2026.10.26
+yt-dlp>=2026.11.23
 
 # Proof-of-origin token provider plugin — queries the local Node server
 # the Dockerfile builds and docker-entrypoint.sh starts, so yt-dlp can get
