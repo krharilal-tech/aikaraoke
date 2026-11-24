@@ -12,7 +12,9 @@ ASR), so a natural-feeling line break is inferred from singing pauses.
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 COLOR_PAST = "&HD3D3D3&"    # light gray, BGR
@@ -23,6 +25,18 @@ MAX_WORDS_PER_LINE = 8
 MAX_LINE_DURATION = 7.0
 PAUSE_THRESHOLD = 0.7
 LEAD_IN_SECONDS = 1.0
+
+# Fonts bundled in python/fonts/ (passed to ffmpeg as its fontsdir), by the
+# Unicode block of each script. The style has to name one: with "Arial",
+# which has no Malayalam, libass swapped in another font letter by letter,
+# and two-part vowel signs like "ോ" in "പോൽ" fell apart on the server.
+FONTS_DIR = Path(__file__).resolve().parent.parent / "fonts"
+DEFAULT_FONT = "Arial"
+_SCRIPT_FONTS = (
+    (0x0D00, 0x0D7F, "Noto Sans Malayalam"),
+    (0x0B80, 0x0BFF, "Noto Sans Tamil"),
+    (0x0900, 0x097F, "Noto Sans Devanagari"),
+)
 
 
 @dataclass
@@ -72,6 +86,21 @@ def _escape_text(text: str) -> str:
     return text.replace("\\", "/").replace("{", "(").replace("}", ")")
 
 
+def pick_font(words: list[dict[str, Any]]) -> str:
+    """The bundled font for the script most of the lyrics are written in.
+    Each Noto font also has Latin letters, for English words in between."""
+
+    counts: Counter[str] = Counter()
+
+    for raw in words:
+        for char in str(raw.get("word", "")):
+            for first, last, font in _SCRIPT_FONTS:
+                if first <= ord(char) <= last:
+                    counts[font] += 1
+
+    return counts.most_common(1)[0][0] if counts else DEFAULT_FONT
+
+
 def _format_timestamp(seconds: float) -> str:
     seconds = max(0.0, seconds)
     hours = int(seconds // 3600)
@@ -114,7 +143,8 @@ def _wrap_line(parts: list[str]) -> list[str]:
 
 def build_ass(words: list[dict[str, Any]], resolution: tuple[int, int] = (1920, 1080)) -> str:
     width, height = resolution
-    font_size = max(36, height // 16)
+    # Big, bold and centred on screen, easy to read from across a room.
+    font_size = max(48, height // 11)
     margin_v = height // 10
 
     header = f"""[Script Info]
@@ -126,7 +156,7 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,{font_size},&HFFFFFF&,&H000000FF&,&H000000&,&H80000000&,1,0,0,0,100,100,0,0,1,3,2,2,60,60,{margin_v},1
+Style: Default,{pick_font(words)},{font_size},&HFFFFFF&,&H000000FF&,&H000000&,&H80000000&,1,0,0,0,100,100,0,0,1,4,2,5,80,80,{margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text

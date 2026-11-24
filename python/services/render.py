@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from services.ass_builder import write_ass_file
+from services.ass_builder import FONTS_DIR, write_ass_file
 from services.ffmpeg_utils import FfmpegError, probe_duration_seconds, run_ffmpeg
 from services.status_writer import StatusWriter
 
@@ -85,7 +85,10 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s={width}x{height}:fps={FPS}"
     )
 
-    subtitles_arg = f"subtitles='{_escape_for_filter(str(ass_path))}'"
+    subtitles_arg = (
+        f"subtitles='{_escape_for_filter(str(ass_path))}'"
+        f":fontsdir='{_escape_for_filter(str(FONTS_DIR))}'"
+    )
 
     filter_complex = f"[0:v]{zoompan},format=yuv420p[bg];[bg]{subtitles_arg}[v]"
 

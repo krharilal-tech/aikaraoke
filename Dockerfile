@@ -27,10 +27,10 @@ RUN ln -sf $(which python3.11) /usr/local/bin/python && \
 # path — the karaoke subtitle burn-in needs it, and not every distro
 # ffmpeg package ships it by default.
 #
-# fonts-lohit-* matter as much as libass itself: the ASS style requests
-# "Arial" (services/ass_builder.py), which has no Malayalam/Tamil/Hindi
-# glyphs, and on Windows locally GDI silently substitutes a font that
-# does. This bare Linux container has no such fallback, so without fonts
+# Malayalam/Tamil/Hindi lyrics are drawn with the Noto fonts in
+# python/fonts/, which the subtitle style names directly (letting libass
+# substitute fonts for "Arial" broke vowel signs like the one in "പോൽ").
+# fonts-lohit-* stay as a fallback for any other text: without fonts
 # that actually cover those scripts, libass renders .notdef boxes for
 # every non-Latin lyric instead of erroring — a real job hit exactly this
 # on a Malayalam song. The Lohit family covers exactly the non-Latin
