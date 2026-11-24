@@ -33,26 +33,43 @@ class Word:
 
 
 def group_words_into_lines(words: list[dict[str, Any]]) -> list[list[Word]]:
+    """Words tagged with a lyric "line" keep the lyrics' own line breaks, and a
+    long line is only split to fit the screen. Untagged words (WhisperX
+    transcription) get breaks guessed from singing pauses."""
+
     lines: list[list[Word]] = []
     current: list[Word] = []
+    current_line = None
 
     for raw in words:
-        word = Word(text=str(raw["word"]), start=float(raw["start"]), end=float(raw["end"]))
+        word = Word(text=_escape_text(str(raw["word"])), start=float(raw["start"]), end=float(raw["end"]))
+        line = raw.get("line")
 
         if current:
             gap = word.start - current[-1].end
             span_if_added = word.end - current[0].start
+            too_long = len(current) >= MAX_WORDS_PER_LINE or span_if_added > MAX_LINE_DURATION
+            new_line = line != current_line if line is not None else gap > PAUSE_THRESHOLD
 
-            if gap > PAUSE_THRESHOLD or len(current) >= MAX_WORDS_PER_LINE or span_if_added > MAX_LINE_DURATION:
+            if new_line or too_long:
                 lines.append(current)
                 current = []
 
         current.append(word)
+        current_line = line
 
     if current:
         lines.append(current)
 
     return lines
+
+
+def _escape_text(text: str) -> str:
+    """Lyrics are user text: in ASS, "{...}" is a formatting code and a
+    backslash starts one too ("\\N" is a line break), so a pasted "{Chorus}"
+    could hide or restyle words."""
+
+    return text.replace("\\", "/").replace("{", "(").replace("}", ")")
 
 
 def _format_timestamp(seconds: float) -> str:

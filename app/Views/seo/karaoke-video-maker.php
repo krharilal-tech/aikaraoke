@@ -19,8 +19,8 @@ $faqs = [
         'a' => 'Yes. Turn on “Keep original vocals” before generating and you get the same synced-lyrics video with the original vocals left in.',
     ],
     [
-        'q' => 'Can I edit the lyrics or timing myself?',
-        'a' => 'Not inside KaraokAI at the moment — lyrics and timing are produced automatically. Choosing the correct song language before you generate gives the most reliable results.',
+        'q' => 'Can I use my own lyrics?',
+        'a' => 'Yes. Before you generate, turn on “Paste lyrics” and paste them or upload a .txt or .lrc file. KaraokAI times your lyrics to the singing automatically, and an .lrc file’s timestamps are used as a starting point. Editing lyrics or timing after the video is made isn’t available yet.',
     ],
     [
         'q' => 'Can I upload my own background image?',
@@ -86,7 +86,7 @@ $faqs = [
           <?php foreach ([
               ['Add your song', 'Paste a YouTube link to the song and, if you know it, choose its language.'],
               ['Remove vocals', 'AI stem separation (Demucs) splits the voice from the music.'],
-              ['Generate and synchronize lyrics', 'Lyrics are fetched or transcribed, then timed automatically.'],
+              ['Generate and synchronize lyrics', 'Your pasted lyrics, or lyrics we find or transcribe, are timed automatically.'],
               ['Background', 'A background image is picked from our library and applied automatically.'],
               ['Generate the video', 'FFmpeg renders background, highlighted lyrics and audio into a 1080p MP4.'],
               ['Preview and download', 'Watch it in the browser, then download the file.'],
@@ -170,7 +170,7 @@ $faqs = [
             </thead>
             <tbody>
               <tr><th scope="row">Instrumental</th><td>Source or create it separately</td><td>Separated from the song automatically</td></tr>
-              <tr><th scope="row">Lyrics on screen</th><td>Type them into text layers or a subtitle file</td><td>Fetched or transcribed for you</td></tr>
+              <tr><th scope="row">Lyrics on screen</th><td>Type them into text layers or a subtitle file</td><td>Pasted by you, or found or transcribed for you</td></tr>
               <tr><th scope="row">Word highlighting</th><td>Keyframe or time each word manually</td><td>Automatic; estimated for Tamil</td></tr>
               <tr><th scope="row">Background</th><td>Find footage or design one</td><td>Added automatically</td></tr>
               <tr><th scope="row">Export</th><td>Pick codecs and settings yourself</td><td>1080p MP4, ready to play</td></tr>

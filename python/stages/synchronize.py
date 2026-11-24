@@ -21,6 +21,8 @@ from services.status_writer import StatusWriter
 from services.whisperx_engine import (
     align_words,
     build_segments_from_text,
+    number_lines,
+    place_lines_on_singing,
     select_device,
     snap_lines_to_singing,
     spread_bunched_lines,
@@ -43,16 +45,24 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
         status.log("No lyrics text available — skipping word-level sync")
         words: list[dict[str, Any]] = []
     else:
+        # Segments that are lyric lines, as opposed to WhisperX's own
+        # phrases, which don't follow the lyrics' line breaks.
         has_line_timing = bool(segments) and source != "whisperx"
 
         if has_line_timing:
             segments, moved = snap_lines_to_singing(str(vocals_path), segments)
-            status.log(f"Checked {source}'s timing against the vocals: moved {moved} line(s) with no singing")
+            status.log(f"Checked the line timing against the vocals: moved {moved} line(s) with no singing")
 
         if not segments:
-            duration = probe_duration_seconds(str(vocals_path), config)
-            segments = build_segments_from_text(text, duration)
-            status.log(f"Built {len(segments)} rough segment(s) from provider text for alignment")
+            segments = place_lines_on_singing(str(vocals_path), text)
+
+            if segments:
+                has_line_timing = True
+                status.log(f"Placed {len(segments)} line(s) across the sung parts of the song")
+            else:
+                duration = probe_duration_seconds(str(vocals_path), config)
+                segments = build_segments_from_text(text, duration)
+                status.log(f"No singing detected — spread {len(segments)} line(s) across the whole song")
 
         status.log("Running WhisperX forced alignment…")
         words, used_forced_alignment = align_words(str(vocals_path), segments, language, device=select_device())
@@ -69,6 +79,9 @@ def run(config: dict[str, Any], status: StatusWriter) -> dict[str, Any]:
                 f"{len(words)} word timestamp(s) by spreading words evenly across each phrase instead "
                 "(less precise than real alignment, still usable)"
             )
+
+        if has_line_timing:
+            words = number_lines(segments, words)
 
     (job_dir / "lyrics_words.json").write_text(json.dumps(words, indent=2), encoding="utf-8")
 

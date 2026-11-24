@@ -23,6 +23,9 @@ final class JobController extends Controller
     /** Kept in sync with SettingsController::TRANSCRIPTION_LANGUAGES and the <select> in Views/home/index.php. */
     private const LANGUAGES = ['auto', 'ta', 'ml', 'hi', 'en'];
 
+    /** Kept in sync with the lyrics box's maxlength in Views/home/index.php. */
+    private const MAX_LYRICS_LENGTH = 10000;
+
     private JobService $jobService;
 
     public function __construct()
@@ -66,13 +69,19 @@ final class JobController extends Controller
             $this->json(['success' => false, 'message' => 'Please provide a valid YouTube video URL.'], 422);
         }
 
+        $lyrics = Sanitizer::multiline($request->input('lyrics', ''));
+
+        if ($lyrics !== null && mb_strlen($lyrics) > self::MAX_LYRICS_LENGTH) {
+            $this->json(['success' => false, 'message' => 'Lyrics can be at most 10,000 characters.'], 422);
+        }
+
         $maxSeconds = (int) Setting::get('max_video_length_seconds', '600');
 
         try {
             // 'auto' means "use whatever Settings has configured" — null here
             // rather than the literal string keeps buildJobConfig() from
             // needing to special-case it twice.
-            $job = $this->jobService->create($youtubeUrl, $keepVocals, $userId, $language === 'auto' ? null : $language);
+            $job = $this->jobService->create($youtubeUrl, $keepVocals, $userId, $language === 'auto' ? null : $language, $lyrics);
         } catch (Throwable $e) {
             Logger::error('Failed to create job', ['error' => $e->getMessage()]);
             $this->json(['success' => false, 'message' => 'Could not start the job. Please try again.'], 500);

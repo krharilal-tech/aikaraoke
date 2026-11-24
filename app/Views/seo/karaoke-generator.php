@@ -76,7 +76,7 @@ $faqs = [
                 ['bi-link-45deg', 'Song input', 'You paste a YouTube link'],
                 ['bi-soundwave', 'Vocal separation', 'Demucs isolates the voice'],
                 ['bi-music-note-beamed', 'Instrumental track', 'Everything except the vocal'],
-                ['bi-card-text', 'Lyrics', 'Lyrics databases or WhisperX transcription'],
+                ['bi-card-text', 'Lyrics', 'Your pasted lyrics, lyrics databases or transcription'],
                 ['bi-clock', 'Synchronization', 'Lyrics timed automatically'],
                 ['bi-film', 'Video generation', 'Background + lyrics → MP4'],
             ] as [$icon, $label, $detail]): ?>

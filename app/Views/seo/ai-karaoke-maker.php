@@ -20,7 +20,7 @@ $faqs = [
     ],
     [
         'q' => 'Can KaraokAI synchronize lyrics automatically?',
-        'a' => 'Yes. Lyrics are fetched from lyrics databases or transcribed from the vocals, and timed automatically. The video highlights lyrics word by word. In English, Hindi and Malayalam, WhisperX aligns each word to the moment it’s sung; Tamil timing is estimated, so it’s less precise.',
+        'a' => 'Yes. You can paste the lyrics yourself, or KaraokAI fetches them from lyrics databases or transcribes them from the vocals, and they’re timed automatically. The video highlights lyrics word by word. In English, Hindi and Malayalam, WhisperX aligns each word to the moment it’s sung; Tamil timing is estimated, so it’s less precise.',
     ],
     [
         'q' => 'Can I create a karaoke video?',

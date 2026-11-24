@@ -40,6 +40,43 @@
               <div class="form-text">If you know the song's language, picking it directly is more reliable than auto-detect.</div>
             </div>
 
+            <div class="mb-4">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="useLyrics" aria-controls="lyricsPanel" aria-expanded="false">
+                <label class="form-check-label fw-semibold" for="useLyrics">
+                  Paste lyrics (optional) &mdash; more accurate for Indian languages
+                </label>
+              </div>
+              <div class="form-text">Leave this off and we'll find the lyrics for you.</div>
+
+              <div class="mt-3 d-none" id="lyricsPanel">
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                  <label for="lyrics" class="form-label fw-semibold mb-0">Lyrics</label>
+                  <label for="lyricsFile" class="btn btn-sm btn-outline-secondary mb-0">
+                    <i class="bi bi-upload me-1"></i>Upload .txt or .lrc
+                  </label>
+                  <input type="file" class="d-none" id="lyricsFile" accept=".txt,.lrc,text/plain">
+                </div>
+                <textarea
+                  class="form-control form-control-ak"
+                  id="lyrics"
+                  name="lyrics"
+                  rows="8"
+                  maxlength="10000"
+                  spellcheck="false"
+                  placeholder="First line of the song&#10;Second line&#10;&#10;Next verse..."
+                ></textarea>
+                <div class="d-flex justify-content-between gap-3 form-text">
+                  <span>
+                    One line per lyric line, with repeated lines written out each time. Tamil, Malayalam or Hindi
+                    script, or English letters, all work. An .lrc file with timestamps gives the most accurate timing.
+                  </span>
+                  <span class="text-nowrap" id="lyricsCount">0 / 10,000</span>
+                </div>
+                <div class="text-danger small mt-1" id="lyricsError" style="display:none;"></div>
+              </div>
+            </div>
+
             <div class="form-check form-switch mb-4">
               <input class="form-check-input" type="checkbox" id="keepVocals" name="keep_vocals">
               <label class="form-check-label text-secondary" for="keepVocals">

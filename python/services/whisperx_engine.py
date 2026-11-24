@@ -26,6 +26,12 @@ _MIN_RESPREAD_SECONDS = 1.0
 # Less singing than this in a line's window is noise, not the line.
 _MIN_SUNG_LINE_SECONDS = 0.3
 
+# In 1/20ths of a second: a quiet moment this short is a breath, and a loud
+# one this short is a click; a gap this long between sung parts is a break.
+_SHORT_PAUSE_FRAMES = 12
+_SHORT_NOISE_FRAMES = 6
+_BREAK_FRAMES = 40
+
 
 def _disable_huggingface_symlinks() -> None:
     """faster-whisper/WhisperX download model weights via huggingface_hub,
@@ -310,6 +316,76 @@ def snap_lines_to_singing(audio_path: str, segments: list[dict[str, Any]]) -> tu
         snapped[-1]["text"] = " ".join([snapped[-1]["text"], *waiting])
 
     return (snapped, moved) if snapped else (segments, 0)
+
+
+def place_lines_on_singing(audio_path: str, text: str) -> list[dict[str, Any]] | None:
+    """For lyrics with no timing of their own (pasted or plain text). Shares
+    out the song's *sung* time between the lines in order, in proportion to
+    each line's length, so intros and instrumental breaks get no lines —
+    unlike spreading them over the whole song. Returns None if the vocals
+    have no singing to place them on."""
+
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    loudness = _loudness(whisperx.load_audio(audio_path))
+    sung = loudness > _singing_threshold(loudness)
+    sung = _fill_short_runs(sung, value=False, max_frames=_SHORT_PAUSE_FRAMES)
+    sung = _fill_short_runs(sung, value=True, max_frames=_SHORT_NOISE_FRAMES)
+    sung_frames = np.flatnonzero(sung)
+
+    if not lines or sung_frames.size == 0:
+        return None
+
+    # The constant keeps very short lines from getting almost no time.
+    weights = np.array([len(line) + 5 for line in lines], dtype=float)
+    bounds = np.rint(np.concatenate(([0.0], np.cumsum(weights))) / weights.sum() * sung_frames.size).astype(int)
+    segments = []
+
+    for line, first, last in zip(lines, bounds[:-1], bounds[1:]):
+        frames = sung_frames[first:max(last, first + 1)]
+
+        # A line whose share runs across an instrumental break belongs on
+        # the side of the break where most of its share lies.
+        jumps = np.flatnonzero(np.diff(frames) > _BREAK_FRAMES)
+        if jumps.size:
+            pieces = np.split(frames, jumps + 1)
+            frames = max(pieces, key=len)
+
+        segments.append({"text": line, "start": frames[0] / 20, "end": (frames[-1] + 1) / 20})
+
+    return segments
+
+
+def _fill_short_runs(mask: Any, value: bool, max_frames: int) -> Any:
+    """Flips runs of `value` no longer than max_frames, e.g. closing a breath
+    in the middle of a phrase, or dropping a click that isn't singing."""
+
+    mask = mask.copy()
+    edges = np.flatnonzero(np.diff(np.concatenate(([False], mask == value, [False])).astype(int)))
+
+    for start, end in zip(edges[::2], edges[1::2]):
+        if end - start <= max_frames and 0 < start and end < mask.size:
+            mask[start:end] = not value
+
+    return mask
+
+
+def number_lines(segments: list[dict[str, Any]], words: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Tags each word with its lyric line, so the video shows the lyrics'
+    own line breaks instead of guessing them from pauses."""
+
+    line_lengths = [len(str(segment.get("text", "")).split()) for segment in segments]
+
+    if sum(line_lengths) != len(words):
+        return words
+
+    numbered = []
+    position = 0
+
+    for line, length in enumerate(line_lengths):
+        numbered.extend({**word, "line": line} for word in words[position:position + length])
+        position += length
+
+    return numbered
 
 
 def spread_bunched_lines(

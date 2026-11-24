@@ -18,6 +18,20 @@ final class Sanitizer
         return mb_substr($value, 0, $maxLength);
     }
 
+    /**
+     * Free text where line breaks matter, such as pasted lyrics. Unlike
+     * string(), keeps "<" and ">" (they're never rendered as HTML) and
+     * normalises line endings. Returns null when nothing is left.
+     */
+    public static function multiline(mixed $value): ?string
+    {
+        $value = str_replace(["\r\n", "\r"], "\n", (string) $value);
+        $value = preg_replace('/[^\P{C}\n\t]/u', '', $value) ?? '';
+        $value = trim(preg_replace("/\n{3,}/", "\n\n", $value) ?? '');
+
+        return $value === '' ? null : $value;
+    }
+
     public static function html(mixed $value): string
     {
         return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');

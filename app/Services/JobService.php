@@ -22,7 +22,11 @@ use RuntimeException;
  */
 final class JobService
 {
-    public function create(string $youtubeUrl, bool $keepVocals, ?int $userId = null, ?string $language = null): array
+    /**
+     * @param string|null $lyrics Lyrics the user pasted or uploaded, used in
+     *                            place of the lyrics providers when given.
+     */
+    public function create(string $youtubeUrl, bool $keepVocals, ?int $userId = null, ?string $language = null, ?string $lyrics = null): array
     {
         $jobId = (int) Job::create([
             'user_id' => $userId,
@@ -54,11 +58,17 @@ final class JobService
 
         Job::update($jobId, ['storage_path' => $jobDir]);
 
-        $this->writeConfigFile($jobId, $youtubeUrl, $keepVocals, $language);
+        // Kept beside the job so it's clear what a user pasted when they
+        // report a problem with their video's lyrics.
+        if ($lyrics !== null) {
+            file_put_contents($jobDir . '/custom_lyrics.txt', $lyrics, LOCK_EX);
+        }
 
-        Logger::info('Job created', ['youtube_url' => $youtubeUrl, 'keep_vocals' => $keepVocals, 'language' => $language], $jobId);
+        $this->writeConfigFile($jobId, $youtubeUrl, $keepVocals, $language, $lyrics);
 
-        $this->spawnWorker($jobId, $youtubeUrl, $keepVocals, $language);
+        Logger::info('Job created', ['youtube_url' => $youtubeUrl, 'keep_vocals' => $keepVocals, 'language' => $language, 'custom_lyrics' => $lyrics !== null], $jobId);
+
+        $this->spawnWorker($jobId, $youtubeUrl, $keepVocals, $language, $lyrics);
 
         $job = Job::find($jobId) ?? [];
 
@@ -81,7 +91,7 @@ final class JobService
      *
      * @return array<string, mixed>
      */
-    private function buildJobConfig(int $jobId, string $youtubeUrl, bool $keepVocals, ?string $language = null): array
+    private function buildJobConfig(int $jobId, string $youtubeUrl, bool $keepVocals, ?string $language = null, ?string $lyrics = null): array
     {
         return [
             'job_id' => $jobId,
@@ -108,6 +118,7 @@ final class JobService
             'local_backgrounds_path' => $this->resolvePath(Setting::get('local_backgrounds_path', 'storage/backgrounds')),
             'youtube_cookies' => Setting::get('youtube_cookies', ''),
             'youtube_proxy' => Setting::get('youtube_proxy', ''),
+            'custom_lyrics' => $lyrics ?? '',
             'openai_api_key' => env('OPENAI_API_KEY', ''),
             'musixmatch_api_key' => env('MUSIXMATCH_API_KEY', ''),
             'genius_access_token' => env('GENIUS_ACCESS_TOKEN', ''),
@@ -124,9 +135,9 @@ final class JobService
      * written either way since nothing reads config.json to decide which
      * mode is active, but it's harmless/unused in RunPod mode.)
      */
-    private function writeConfigFile(int $jobId, string $youtubeUrl, bool $keepVocals, ?string $language = null): void
+    private function writeConfigFile(int $jobId, string $youtubeUrl, bool $keepVocals, ?string $language = null, ?string $lyrics = null): void
     {
-        $config = $this->buildJobConfig($jobId, $youtubeUrl, $keepVocals, $language);
+        $config = $this->buildJobConfig($jobId, $youtubeUrl, $keepVocals, $language, $lyrics);
 
         file_put_contents(
             $this->jobDirectory($jobId) . '/config.json',
@@ -583,10 +594,10 @@ final class JobService
         }
     }
 
-    private function spawnWorker(int $jobId, string $youtubeUrl, bool $keepVocals, ?string $language = null): void
+    private function spawnWorker(int $jobId, string $youtubeUrl, bool $keepVocals, ?string $language = null, ?string $lyrics = null): void
     {
         if ($this->runPodConfigured()) {
-            $this->dispatchToRunPod($jobId, $youtubeUrl, $keepVocals, $language);
+            $this->dispatchToRunPod($jobId, $youtubeUrl, $keepVocals, $language, $lyrics);
 
             return;
         }
@@ -658,9 +669,9 @@ final class JobService
      * progresses and once it's done — see docs/CONFIGURATION.md's RunPod
      * section for the full request/response shape.
      */
-    private function dispatchToRunPod(int $jobId, string $youtubeUrl, bool $keepVocals, ?string $language = null): void
+    private function dispatchToRunPod(int $jobId, string $youtubeUrl, bool $keepVocals, ?string $language = null, ?string $lyrics = null): void
     {
-        $config = $this->buildJobConfig($jobId, $youtubeUrl, $keepVocals, $language);
+        $config = $this->buildJobConfig($jobId, $youtubeUrl, $keepVocals, $language, $lyrics);
 
         // Neither of these means anything on a remote machine — job_dir is
         // a local path on RunPod's own (ephemeral) disk that

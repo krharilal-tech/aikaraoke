@@ -35,6 +35,18 @@ _LRCLIB_RETRY_DELAYS_SECONDS = (2, 5, 10)
 
 _LRC_TAG = re.compile(r"\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)\]")
 
+# LRC's "[offset:+500]" header, in milliseconds.
+_LRC_OFFSET = re.compile(r"^\s*\[offset:\s*([+-]?\d+)\s*\]", flags=re.IGNORECASE | re.MULTILINE)
+
+# Whole lines that label the song rather than being sung: anything in square
+# brackets ("[Chorus]", "[ar:Artist]") and common section names in round ones.
+# Round brackets are otherwise left alone, since they often hold sung backing
+# vocals.
+_LABEL_LINE = re.compile(
+    r"^\s*(\[[^\]]*\]|\(\s*(chorus|verse|bridge|intro|outro|hook|pre-?chorus|interlude|music|instrumental|repeat|x\s*\d+|\d+\s*x)[^)]*\))\s*$",
+    flags=re.IGNORECASE,
+)
+
 # LRC times are hand-made, so a line can be tagged slightly after it starts.
 _LRC_LINE_LEAD_SECONDS = 0.5
 
@@ -159,11 +171,19 @@ def parse_lrc_segments(text: str, duration_sec: int | None) -> list[dict[str, An
     mark where singing stops."""
 
     entries = []
+    offset = _LRC_OFFSET.search(text)
+    # A positive offset makes the lyrics appear earlier.
+    shift = int(offset.group(1)) / 1000 if offset else 0.0
 
     for line in text.splitlines():
         tags = _LRC_TAG.findall(line)
         lyric = _LRC_TAG.sub("", line).strip()
-        entries.extend((int(minutes) * 60 + float(seconds), lyric) for minutes, seconds in tags)
+
+        # A timed "[Chorus]" ends the previous line like a blank one does.
+        if _is_label_line(lyric):
+            lyric = ""
+
+        entries.extend((max(int(minutes) * 60 + float(seconds) - shift, 0.0), lyric) for minutes, seconds in tags)
 
     entries.sort(key=lambda entry: entry[0])
     segments = []
@@ -186,11 +206,17 @@ def parse_lrc_segments(text: str, duration_sec: int | None) -> list[dict[str, An
     return segments or None
 
 
-def _strip_lrc_timestamps(text: str) -> str:
-    """Removes LRC's "[00:12.34]" tags, leaving the lyrics as plain text."""
+def _is_label_line(line: str) -> bool:
+    return bool(_LABEL_LINE.match(line))
+
+
+def strip_lrc_timestamps(text: str) -> str:
+    """Removes LRC's "[00:12.34]" tags, LRC header tags like "[ar:Artist]" and
+    section labels like "[Chorus]", leaving one lyric line per line. Nobody
+    sings the labels, and words that aren't sung pull alignment off."""
 
     lines = [_LRC_TAG.sub("", line).strip() for line in text.splitlines()]
-    return "\n".join(line for line in lines if line)
+    return "\n".join(line for line in lines if line and not _is_label_line(line))
 
 
 def fetch_musixmatch(artist: str, title: str, api_key: str) -> str | None:
@@ -321,7 +347,7 @@ def get_lyrics_text(
 
     text = fetch_lrclib(artist, title, duration_sec, log)
     if text:
-        return _strip_lrc_timestamps(text), "lrclib", parse_lrc_segments(text, duration_sec)
+        return strip_lrc_timestamps(text), "lrclib", parse_lrc_segments(text, duration_sec)
 
     text = fetch_musixmatch(artist, title, musixmatch_api_key)
     if text:
