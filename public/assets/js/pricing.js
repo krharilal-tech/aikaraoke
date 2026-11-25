@@ -8,6 +8,8 @@
   const $confirmBtn = $('#buyPackageConfirmBtn');
 
   let selectedPackageId = null;
+  // The order "Buy Now" recorded, moved on to Cashfree at checkout.
+  let startedOrderId = null;
   const bsModal = $modal.length ? new bootstrap.Modal($modal[0]) : null;
 
   function showError(message) {
@@ -25,8 +27,22 @@
     }
 
     selectedPackageId = $(this).data('package-id');
+    startedOrderId = null;
     $modalName.text($(this).data('package-name'));
     clearError();
+
+    // Records the click for the admin's Orders page. The box opens either
+    // way; without an id, checkout simply records a new order.
+    const packageId = selectedPackageId;
+    $.ajax({
+      url: window.AK.baseUrl + '/payments/' + packageId + '/start',
+      method: 'POST',
+      dataType: 'json',
+    }).done(function (response) {
+      if (response && response.success && packageId === selectedPackageId) {
+        startedOrderId = response.order_id;
+      }
+    });
 
     if (bsModal) {
       bsModal.show();
@@ -47,7 +63,7 @@
     $.ajax({
       url: window.AK.baseUrl + '/payments/' + selectedPackageId + '/checkout',
       method: 'POST',
-      data: { phone: phone },
+      data: { phone: phone, order_id: startedOrderId || '' },
       dataType: 'json',
     })
       .done(function (response) {

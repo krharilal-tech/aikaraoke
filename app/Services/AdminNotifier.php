@@ -56,6 +56,40 @@ final class AdminNotifier
     }
 
     /**
+     * The user clicked "Buy Now" (they may or may not go on to pay).
+     *
+     * @param array<string, mixed> $order a payment_orders row
+     * @param array<string, mixed> $buyer a users row
+     */
+    public static function checkoutStarted(array $order, array $buyer, ?string $packageName): void
+    {
+        $email = (string) ($buyer['email'] ?? 'unknown');
+
+        self::dispatch(
+            'Buy Now: ' . $email . ' is looking at ' . ($packageName ?? 'a package'),
+            '<p>A user clicked <strong>Buy Now</strong>. You will get another email if the payment succeeds or fails.</p>'
+            . self::orderTable($order, $buyer, $packageName)
+            . self::ordersLink()
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $order a payment_orders row
+     * @param array<string, mixed> $buyer a users row
+     */
+    public static function purchaseFailed(array $order, array $buyer, ?string $packageName, string $reason): void
+    {
+        $email = (string) ($buyer['email'] ?? 'unknown');
+
+        self::dispatch(
+            'Payment failed: ' . $email . ' (' . ($packageName ?? 'package') . ')',
+            '<p>A payment did not go through.</p>'
+            . self::orderTable($order, $buyer, $packageName, ['Reason' => $reason])
+            . self::ordersLink()
+        );
+    }
+
+    /**
      * @param array<string, mixed> $job a jobs row (or a minimal stand-in)
      */
     public static function jobCreated(array $job, ?string $email): void
@@ -123,6 +157,31 @@ final class AdminNotifier
         } catch (Throwable) {
             return [];
         }
+    }
+
+    /**
+     * @param array<string, mixed> $order
+     * @param array<string, mixed> $buyer
+     * @param array<string, string> $extra
+     */
+    private static function orderTable(array $order, array $buyer, ?string $packageName, array $extra = []): string
+    {
+        return self::table(array_merge([
+            'Name' => (string) ($buyer['name'] ?? '—'),
+            'Email' => (string) ($buyer['email'] ?? '—'),
+            'Phone' => (string) ($buyer['phone'] ?? '—'),
+            'Package' => $packageName ?? ('#' . ($order['package_id'] ?? '?')),
+            'Amount' => 'INR ' . number_format((float) ($order['amount_inr'] ?? 0), 2),
+            'Credits' => (string) (int) ($order['credits'] ?? 0),
+            'Order ID' => (string) ($order['cf_order_id'] ?? $order['id'] ?? '?'),
+        ], $extra, [
+            'When (UTC)' => gmdate('Y-m-d H:i:s'),
+        ]));
+    }
+
+    private static function ordersLink(): string
+    {
+        return '<p><a href="' . e(base_url('admin/orders')) . '">Open Orders</a></p>';
     }
 
     /**

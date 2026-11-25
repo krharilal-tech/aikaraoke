@@ -3,6 +3,7 @@
     <h1 class="h3 fw-bold mb-0"><i class="bi bi-box-seam me-2 text-gradient"></i>Packages</h1>
     <div>
       <a href="<?= e(base_url('admin/users')) ?>" class="btn btn-sm btn-outline-secondary">Users</a>
+      <a href="<?= e(base_url('admin/orders')) ?>" class="btn btn-sm btn-outline-secondary">Orders</a>
       <a href="<?= e(base_url('admin/packages')) ?>" class="btn btn-sm btn-outline-secondary">Packages</a>
     </div>
   </div>

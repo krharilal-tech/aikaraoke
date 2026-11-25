@@ -26,6 +26,26 @@ final class PaymentController extends Controller
     }
 
     /**
+     * Called via AJAX when the user clicks "Buy Now" on the Pricing page:
+     * records the attempt (admin Orders page, plus an admin email) before
+     * they've entered anything, and returns its id for checkout() to use.
+     */
+    public function start(Request $request): void
+    {
+        $this->requireCsrf($request);
+        $this->rateLimit($request, 'payment_start', 20, 600);
+
+        try {
+            $order = $this->paymentService->startOrder(Auth::id(), Sanitizer::int($request->param('packageId')));
+        } catch (Throwable $e) {
+            $message = $e instanceof RuntimeException ? $e->getMessage() : 'Could not start the purchase. Please try again.';
+            $this->json(['success' => false, 'message' => $message], 422);
+        }
+
+        $this->json(['success' => true, 'order_id' => (int) ($order['id'] ?? 0)]);
+    }
+
+    /**
      * Called via AJAX from the Pricing page (see public/assets/js/pricing.js)
      * — returns the Cashfree payment_session_id for the browser to hand to
      * their JS SDK, which is what actually triggers the redirect to
@@ -56,7 +76,14 @@ final class PaymentController extends Controller
         }
 
         try {
-            $order = $this->paymentService->createOrder($userId, $packageId, $phone, (string) $user['email']);
+            $startedOrderId = Sanitizer::int($request->input('order_id', 0));
+            $order = $this->paymentService->createOrder(
+                $userId,
+                $packageId,
+                $phone,
+                (string) $user['email'],
+                $startedOrderId > 0 ? $startedOrderId : null
+            );
         } catch (Throwable $e) {
             $message = $e instanceof RuntimeException ? $e->getMessage() : 'Could not start the payment. Please try again.';
             $this->json(['success' => false, 'message' => $message], 500);
@@ -101,7 +128,7 @@ final class PaymentController extends Controller
                 $this->paymentService->confirmOrder($order, '');
                 $order = PaymentOrder::find((int) $order['id']) ?? $order;
             } elseif (in_array($remoteStatus, ['EXPIRED', 'TERMINATED'], true)) {
-                PaymentOrder::markFailed((int) $order['id']);
+                $this->paymentService->failOrder((int) $order['id'], 'Cashfree order ' . strtolower($remoteStatus));
                 $order = PaymentOrder::find((int) $order['id']) ?? $order;
             }
         }

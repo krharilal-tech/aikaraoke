@@ -41,6 +41,7 @@ $router->get('/ai-vocal-remover', [SeoPageController::class, 'aiVocalRemover'], 
 $router->get('/admin/users', [AdminController::class, 'users']);
 $router->post('/admin/users/{id}/credits', [AdminController::class, 'adjustCredits']);
 $router->post('/admin/users/{id}/block', [AdminController::class, 'toggleBlock']);
+$router->get('/admin/orders', [AdminController::class, 'orders']);
 $router->get('/admin/packages', [AdminController::class, 'packages']);
 $router->post('/admin/packages', [AdminController::class, 'createPackage']);
 $router->post('/admin/packages/{id}', [AdminController::class, 'updatePackage']);
@@ -49,6 +50,7 @@ $router->post('/admin/packages/{id}/toggle', [AdminController::class, 'togglePac
 $router->get('/settings', [SettingsController::class, 'index']);
 $router->post('/settings', [SettingsController::class, 'update']);
 
+$router->post('/payments/{packageId}/start', [PaymentController::class, 'start']);
 $router->post('/payments/{packageId}/checkout', [PaymentController::class, 'checkout']);
 $router->get('/payments/return', [PaymentController::class, 'returnCallback']);
 // Called by Cashfree, not by a user's browser — authenticated via HMAC

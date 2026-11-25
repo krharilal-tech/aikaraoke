@@ -12,6 +12,7 @@ use App\Core\Sanitizer;
 use App\Core\Session;
 use App\Models\Credit;
 use App\Models\Package;
+use App\Models\PaymentOrder;
 use App\Models\User;
 
 final class AdminController extends Controller
@@ -24,6 +25,32 @@ final class AdminController extends Controller
             'pageTitle' => 'Admin — Users',
             'users' => User::allWithBalance(),
             'flash' => flash_message('admin_status'),
+        ]);
+    }
+
+    /**
+     * Every purchase attempt, from a "Buy Now" click to paid or failed, so
+     * people whose payment didn't go through can be followed up.
+     */
+    public function orders(Request $request): void
+    {
+        $this->requireAdmin();
+
+        $orders = PaymentOrder::allWithDetails();
+        $counts = array_count_values(array_map(static fn (array $o): string => (string) $o['status'], $orders));
+        $revenue = 0.0;
+
+        foreach ($orders as $order) {
+            if ($order['status'] === PaymentOrder::STATUS_PAID) {
+                $revenue += (float) $order['amount_inr'];
+            }
+        }
+
+        $this->view('admin/orders', [
+            'pageTitle' => 'Admin — Orders',
+            'orders' => $orders,
+            'counts' => $counts,
+            'revenue' => $revenue,
         ]);
     }
 

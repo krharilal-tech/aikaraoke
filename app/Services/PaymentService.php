@@ -23,24 +23,80 @@ final class PaymentService
 {
     private const API_VERSION = '2026-01-01';
 
-    public function createOrder(int $userId, int $packageId, string $customerPhone, string $customerEmail): array
+    /**
+     * Records a "Buy Now" click as a `started` order, so the admin Orders
+     * page shows people who looked at paying but never went on to Cashfree.
+     * Clicking again within half an hour reuses the same order and doesn't
+     * email the admin twice.
+     *
+     * @return array<string, mixed> the payment_orders row
+     */
+    public function startOrder(int $userId, int $packageId): array
     {
-        $package = Package::find($packageId);
+        $package = $this->activePackage($packageId);
+        $existing = PaymentOrder::findRecentStarted($userId, $packageId);
 
-        if ($package === null || (int) $package['is_active'] !== 1) {
-            throw new RuntimeException('That package is not available.');
+        if ($existing !== null) {
+            return $existing;
         }
-
-        $cfOrderId = 'ord_' . bin2hex(random_bytes(8));
 
         $orderRowId = (int) PaymentOrder::create([
             'user_id' => $userId,
             'package_id' => $packageId,
-            'cf_order_id' => $cfOrderId,
+            'cf_order_id' => self::newCfOrderId(),
             'amount_inr' => $package['price_inr'],
             'credits' => $package['credits'],
-            'status' => PaymentOrder::STATUS_CREATED,
+            'status' => PaymentOrder::STATUS_STARTED,
         ]);
+
+        $order = PaymentOrder::find($orderRowId) ?? [];
+        $buyer = User::find($userId);
+        AdminNotifier::checkoutStarted($order, $buyer ?? [], $package['name'] ?? null);
+
+        return $order;
+    }
+
+    /**
+     * Creates the Cashfree order. $startedOrderId is the order "Buy Now"
+     * recorded; it moves on to `created`. Without one (or if it's not this
+     * user's, for this package, still `started`), a new order is recorded.
+     */
+    public function createOrder(
+        int $userId,
+        int $packageId,
+        string $customerPhone,
+        string $customerEmail,
+        ?int $startedOrderId = null
+    ): array {
+        $package = $this->activePackage($packageId);
+        $started = $startedOrderId !== null ? PaymentOrder::find($startedOrderId) : null;
+
+        if (
+            $started !== null
+            && (int) $started['user_id'] === $userId
+            && (int) $started['package_id'] === $packageId
+            && $started['status'] === PaymentOrder::STATUS_STARTED
+        ) {
+            $orderRowId = (int) $started['id'];
+            $cfOrderId = (string) $started['cf_order_id'];
+
+            PaymentOrder::update($orderRowId, [
+                'amount_inr' => $package['price_inr'],
+                'credits' => $package['credits'],
+                'status' => PaymentOrder::STATUS_CREATED,
+            ]);
+        } else {
+            $cfOrderId = self::newCfOrderId();
+
+            $orderRowId = (int) PaymentOrder::create([
+                'user_id' => $userId,
+                'package_id' => $packageId,
+                'cf_order_id' => $cfOrderId,
+                'amount_inr' => $package['price_inr'],
+                'credits' => $package['credits'],
+                'status' => PaymentOrder::STATUS_CREATED,
+            ]);
+        }
 
         $payload = [
             'order_id' => $cfOrderId,
@@ -61,13 +117,13 @@ final class PaymentService
         $response = $this->request('POST', '/orders', $payload);
 
         if ($response === null || !isset($response['payment_session_id'])) {
-            PaymentOrder::markFailed($orderRowId);
-
             Logger::error('Cashfree order creation failed', [
                 'order_row_id' => $orderRowId,
                 'cf_order_id' => $cfOrderId,
                 'response' => $response,
             ]);
+
+            $this->failOrder($orderRowId, 'Cashfree could not create the order (see the app log for its response)');
 
             throw new RuntimeException('Could not start the payment. Please try again.');
         }
@@ -89,18 +145,18 @@ final class PaymentService
      */
     public function confirmOrder(array $order, string $cfPaymentId): void
     {
-        if ($order['status'] !== PaymentOrder::STATUS_CREATED) {
-            // Already resolved (e.g. the return-page fallback beat the
-            // webhook here) — backfill cf_payment_id if this call has one
-            // and the stored order doesn't, but never re-grant credits.
-            if ($cfPaymentId !== '' && empty($order['cf_payment_id'])) {
-                PaymentOrder::markPaid((int) $order['id'], $cfPaymentId);
+        if (!PaymentOrder::markPaid((int) $order['id'], $cfPaymentId)) {
+            // Already paid (e.g. the return-page fallback beat the webhook
+            // here) — backfill cf_payment_id if this call has one and the
+            // stored order doesn't, but never re-grant credits.
+            $current = PaymentOrder::find((int) $order['id']);
+
+            if ($cfPaymentId !== '' && $current !== null && empty($current['cf_payment_id'])) {
+                PaymentOrder::setPaymentId((int) $order['id'], $cfPaymentId);
             }
 
             return;
         }
-
-        PaymentOrder::markPaid((int) $order['id'], $cfPaymentId);
 
         Credit::grant(
             (int) $order['user_id'],
@@ -153,7 +209,51 @@ final class PaymentService
             return;
         }
 
-        PaymentOrder::markFailed((int) $order['id']);
+        $reason = 'Payment ' . strtolower(is_string($paymentStatus) ? $paymentStatus : 'not completed');
+        $detail = $payload['data']['error_details']['error_description'] ?? null;
+
+        if (is_string($detail) && $detail !== '') {
+            $reason .= ': ' . $detail;
+        }
+
+        $this->failOrder((int) $order['id'], $reason);
+    }
+
+    /**
+     * Marks a `created` order failed and emails the admin — once, however
+     * many times Cashfree reports it.
+     */
+    public function failOrder(int $orderRowId, string $reason): void
+    {
+        if (!PaymentOrder::markFailed($orderRowId)) {
+            return;
+        }
+
+        Logger::info('Payment order failed', ['payment_order_id' => $orderRowId, 'reason' => $reason]);
+
+        $order = PaymentOrder::find($orderRowId) ?? ['id' => $orderRowId];
+        $buyer = isset($order['user_id']) ? User::find((int) $order['user_id']) : null;
+        $package = isset($order['package_id']) ? Package::find((int) $order['package_id']) : null;
+        AdminNotifier::purchaseFailed($order, $buyer ?? [], $package['name'] ?? null, $reason);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function activePackage(int $packageId): array
+    {
+        $package = Package::find($packageId);
+
+        if ($package === null || (int) $package['is_active'] !== 1) {
+            throw new RuntimeException('That package is not available.');
+        }
+
+        return $package;
+    }
+
+    private static function newCfOrderId(): string
+    {
+        return 'ord_' . bin2hex(random_bytes(8));
     }
 
     /**
