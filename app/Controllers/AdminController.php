@@ -14,6 +14,7 @@ use App\Models\Credit;
 use App\Models\Package;
 use App\Models\PaymentOrder;
 use App\Models\User;
+use App\Services\PaymentService;
 
 final class AdminController extends Controller
 {
@@ -51,7 +52,35 @@ final class AdminController extends Controller
             'orders' => $orders,
             'counts' => $counts,
             'revenue' => $revenue,
+            'flash' => flash_message('admin_status'),
         ]);
+    }
+
+    /**
+     * "Check with Cashfree" on an order that never got confirmed — e.g. the
+     * webhook didn't arrive — so a paid order still gets its credits.
+     */
+    public function checkOrder(Request $request): void
+    {
+        $this->requireAdmin();
+        $this->requireCsrf($request);
+
+        $order = PaymentOrder::find(Sanitizer::int($request->param('id')));
+
+        if ($order === null) {
+            Response::notFound('Order not found.');
+        }
+
+        $message = $order['status'] === PaymentOrder::STATUS_PAID
+            ? 'This order is already paid.'
+            : (new PaymentService())->recheckOrder($order);
+
+        Session::flash('admin_status', [
+            'type' => 'success',
+            'message' => $order['cf_order_id'] . ': ' . $message,
+        ]);
+
+        $this->redirect(base_url('admin/orders'));
     }
 
     public function adjustCredits(Request $request): void

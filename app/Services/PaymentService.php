@@ -81,6 +81,7 @@ final class PaymentService
             $cfOrderId = (string) $started['cf_order_id'];
 
             PaymentOrder::update($orderRowId, [
+                'customer_phone' => $customerPhone,
                 'amount_inr' => $package['price_inr'],
                 'credits' => $package['credits'],
                 'status' => PaymentOrder::STATUS_CREATED,
@@ -92,6 +93,7 @@ final class PaymentService
                 'user_id' => $userId,
                 'package_id' => $packageId,
                 'cf_order_id' => $cfOrderId,
+                'customer_phone' => $customerPhone,
                 'amount_inr' => $package['price_inr'],
                 'credits' => $package['credits'],
                 'status' => PaymentOrder::STATUS_CREATED,
@@ -107,10 +109,11 @@ final class PaymentService
                 'customer_phone' => $customerPhone,
                 'customer_email' => $customerEmail,
             ],
-            // Cashfree appends "?order_id=..." to this itself on redirect
-            // back — no placeholder syntax to fill in here.
+            // Cashfree fills in {order_id} on the way back; it doesn't add
+            // the order id on its own, and without it the return page can't
+            // tell which order to check.
             'order_meta' => [
-                'return_url' => base_url('payments/return'),
+                'return_url' => base_url('payments/return') . '?order_id={order_id}',
             ],
         ];
 
@@ -254,6 +257,36 @@ final class PaymentService
     private static function newCfOrderId(): string
     {
         return 'ord_' . bin2hex(random_bytes(8));
+    }
+
+    /**
+     * Asks Cashfree about an order that hasn't been confirmed (the admin
+     * Orders page's "Check with Cashfree" button), and settles it: paid
+     * grants the credits, expired or terminated marks it failed.
+     *
+     * @param array<string, mixed> $order
+     * @return string what Cashfree said, for the admin
+     */
+    public function recheckOrder(array $order): string
+    {
+        $remote = $this->fetchOrderStatus((string) $order['cf_order_id']);
+        $remoteStatus = is_array($remote) ? ($remote['order_status'] ?? null) : null;
+
+        if (!is_string($remoteStatus)) {
+            return 'Cashfree did not answer (or does not know this order). Check the app log.';
+        }
+
+        if ($remoteStatus === 'PAID') {
+            $this->confirmOrder($order, '');
+
+            return 'Cashfree says PAID — the order is now marked paid and the credits are added.';
+        }
+
+        if (in_array($remoteStatus, ['EXPIRED', 'TERMINATED'], true)) {
+            $this->failOrder((int) $order['id'], 'Cashfree order ' . strtolower($remoteStatus));
+        }
+
+        return 'Cashfree says ' . $remoteStatus . '.';
     }
 
     /**

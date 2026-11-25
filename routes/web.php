@@ -42,6 +42,7 @@ $router->get('/admin/users', [AdminController::class, 'users']);
 $router->post('/admin/users/{id}/credits', [AdminController::class, 'adjustCredits']);
 $router->post('/admin/users/{id}/block', [AdminController::class, 'toggleBlock']);
 $router->get('/admin/orders', [AdminController::class, 'orders']);
+$router->post('/admin/orders/{id}/check', [AdminController::class, 'checkOrder']);
 $router->get('/admin/packages', [AdminController::class, 'packages']);
 $router->post('/admin/packages', [AdminController::class, 'createPackage']);
 $router->post('/admin/packages/{id}', [AdminController::class, 'updatePackage']);

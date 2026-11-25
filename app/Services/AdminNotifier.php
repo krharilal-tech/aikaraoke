@@ -169,7 +169,7 @@ final class AdminNotifier
         return self::table(array_merge([
             'Name' => (string) ($buyer['name'] ?? '—'),
             'Email' => (string) ($buyer['email'] ?? '—'),
-            'Phone' => (string) ($buyer['phone'] ?? '—'),
+            'Phone' => (string) ($order['customer_phone'] ?? $buyer['phone'] ?? '—'),
             'Package' => $packageName ?? ('#' . ($order['package_id'] ?? '?')),
             'Amount' => 'INR ' . number_format((float) ($order['amount_inr'] ?? 0), 2),
             'Credits' => (string) (int) ($order['credits'] ?? 0),

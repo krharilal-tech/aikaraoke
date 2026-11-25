@@ -17,6 +17,10 @@ $statusInfo = [
     </div>
   </div>
 
+  <?php if (!empty($flash)): ?>
+    <div class="alert alert-<?= e($flash['type'] === 'success' ? 'info' : 'danger') ?> mb-4"><?= e($flash['message']) ?></div>
+  <?php endif; ?>
+
   <div class="d-flex flex-wrap gap-2 mb-4">
     <?php foreach ($statusInfo as $status => [$label, $badge, $help]): ?>
       <span class="badge rounded-pill <?= e($badge) ?> px-3 py-2" title="<?= e($help) ?>">
@@ -55,15 +59,26 @@ $statusInfo = [
                 <?php endif; ?>
               </td>
               <td class="text-nowrap">
-                <?php if (!empty($order['user_phone'])): ?>
-                  <a href="tel:<?= e($order['user_phone']) ?>"><?= e($order['user_phone']) ?></a>
+                <?php if (!empty($order['customer_phone'])): ?>
+                  <a href="tel:<?= e($order['customer_phone']) ?>"><?= e($order['customer_phone']) ?></a>
+                <?php elseif (!empty($order['user_phone'])): ?>
+                  <a href="tel:<?= e($order['user_phone']) ?>" class="text-secondary"
+                     title="Not saved with this order. This is the latest number on the account."><?= e($order['user_phone']) ?>*</a>
                 <?php else: ?>
                   <span class="text-secondary">—</span>
                 <?php endif; ?>
               </td>
               <td><?= e($order['package_name'] ?? ('#' . $order['package_id'])) ?> <span class="text-secondary small">(<?= (int) $order['credits'] ?> credits)</span></td>
               <td class="text-nowrap">₹<?= number_format((float) $order['amount_inr'], 2) ?></td>
-              <td><span class="badge <?= e($badge) ?>" title="<?= e($help) ?>"><?= e($label) ?></span></td>
+              <td>
+                <span class="badge <?= e($badge) ?>" title="<?= e($help) ?>"><?= e($label) ?></span>
+                <?php if (in_array($order['status'], ['created', 'failed'], true)): ?>
+                  <form method="post" action="<?= e(base_url('admin/orders/' . $order['id'] . '/check')) ?>" class="mt-1">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-sm btn-outline-secondary py-0 px-2 small">Check with Cashfree</button>
+                  </form>
+                <?php endif; ?>
+              </td>
               <td class="small text-secondary">
                 <code><?= e($order['cf_order_id']) ?></code>
                 <?php if (!empty($order['cf_payment_id'])): ?>
@@ -78,7 +93,8 @@ $statusInfo = [
   </div>
 
   <p class="text-secondary small mt-3 mb-0">
-    Phone numbers are the user's latest, entered at checkout. A user who only clicked Buy Now may not have one yet.
+    Phone numbers are the ones entered at checkout for that order. * marks older orders, or ones that never reached
+    checkout, showing the latest number on the account instead.
     Times are the server's time.
   </p>
 </section>
