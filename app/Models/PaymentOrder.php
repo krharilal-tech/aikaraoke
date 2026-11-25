@@ -53,8 +53,18 @@ final class PaymentOrder extends Model
      */
     public static function markPaid(int $id, string $cfPaymentId): bool
     {
+        // Two plain statements, not NULLIF(?, ''): Hostinger's MySQL rejects
+        // comparing the bound value with a literal ("Illegal mix of
+        // collations"), which made every payment confirmation fail.
+        if ($cfPaymentId === '') {
+            return static::db()->execute(
+                'UPDATE `payment_orders` SET `status` = ? WHERE `id` = ? AND `status` <> ?',
+                [self::STATUS_PAID, $id, self::STATUS_PAID]
+            ) > 0;
+        }
+
         return static::db()->execute(
-            'UPDATE `payment_orders` SET `status` = ?, `cf_payment_id` = NULLIF(?, \'\') WHERE `id` = ? AND `status` <> ?',
+            'UPDATE `payment_orders` SET `status` = ?, `cf_payment_id` = ? WHERE `id` = ? AND `status` <> ?',
             [self::STATUS_PAID, $cfPaymentId, $id, self::STATUS_PAID]
         ) > 0;
     }

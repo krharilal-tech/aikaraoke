@@ -207,7 +207,8 @@ final class PaymentService
         }
 
         if ($paymentStatus === 'SUCCESS') {
-            $this->confirmOrder($order, is_string($cfPaymentId) ? $cfPaymentId : '');
+            // Cashfree sends cf_payment_id as a number in its webhooks.
+            $this->confirmOrder($order, is_string($cfPaymentId) || is_int($cfPaymentId) ? (string) $cfPaymentId : '');
 
             return;
         }
