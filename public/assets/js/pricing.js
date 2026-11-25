@@ -57,6 +57,12 @@
           return;
         }
 
+        if (typeof Cashfree !== 'function') {
+          showError('The payment page could not load. Please refresh and try again.');
+          $confirmBtn.prop('disabled', false).text('Continue to Payment');
+          return;
+        }
+
         const cashfree = Cashfree({ mode: response.cashfree_mode });
         cashfree.checkout({
           paymentSessionId: response.payment_session_id,

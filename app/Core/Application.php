@@ -43,7 +43,13 @@ final class Application
         header('X-Content-Type-Options: nosniff');
         header('X-Frame-Options: SAMEORIGIN');
         header('Referrer-Policy: strict-origin-when-cross-origin');
-        header("Content-Security-Policy: default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; media-src 'self' blob:;");
+        // Cashfree's checkout (pricing page) loads its script from
+        // sdk.cashfree.com and talks to *.cashfree.com; without these the
+        // browser blocks it and "Continue to Payment" never gets past
+        // "Please wait…" ("Cashfree is not defined").
+        header("Content-Security-Policy: default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; "
+            . "script-src 'self' https://sdk.cashfree.com; connect-src 'self' https://*.cashfree.com; "
+            . "frame-src https://*.cashfree.com; media-src 'self' blob:;");
     }
 
     public static function run(Router $router): void
