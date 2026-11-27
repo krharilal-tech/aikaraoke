@@ -164,6 +164,15 @@
           <h6 class="text-uppercase text-secondary small fw-bold mb-3">Payments (Cashfree)</h6>
 
           <div class="mb-3">
+            <label class="form-label" for="payments_enabled">Credit purchases</label>
+            <select class="form-control form-control-ak" id="payments_enabled" name="payments_enabled">
+              <option value="0" <?= ($settings['payments_enabled'] ?? '0') !== '1' ? 'selected' : '' ?>>Off: pricing page shows "Payments coming soon"</option>
+              <option value="1" <?= ($settings['payments_enabled'] ?? '0') === '1' ? 'selected' : '' ?>>On: users can buy credit packs</option>
+            </select>
+            <div class="form-text">Only turn this on while the payment gateway account below is active.</div>
+          </div>
+
+          <div class="mb-3">
             <label class="form-label" for="CASHFREE_APP_ID">Cashfree App ID</label>
             <input type="password" class="form-control form-control-ak" id="CASHFREE_APP_ID" name="CASHFREE_APP_ID"
                    placeholder="<?= $cashfreeAppIdSet ? '•••••••••••••••••••• (already set — leave blank to keep)' : '' ?>" autocomplete="off">

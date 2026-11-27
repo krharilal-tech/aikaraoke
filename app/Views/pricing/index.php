@@ -4,6 +4,13 @@
     <p class="text-secondary">1 credit = 1 karaoke video. No subscription, credits don't expire.</p>
   </div>
 
+  <?php if (!$paymentsEnabled): ?>
+    <div class="alert alert-warning text-center mx-auto mb-5" style="max-width: 640px;">
+      <strong>Payments coming soon.</strong> Credit packs can't be bought just yet.
+      Your free credit on signup works as usual.
+    </div>
+  <?php endif; ?>
+
   <div class="row g-4 justify-content-center">
     <div class="col-md-6 col-lg-3">
       <div class="glass-card p-4 h-100 text-center">
@@ -26,8 +33,12 @@
           <p class="text-secondary small mb-4">
             <?= (int) $package['credits'] ?> karaokes &mdash; ₹<?= number_format((float) $package['price_inr'] / max((int) $package['credits'], 1), 1) ?> each
           </p>
-          <button type="button" class="buy-package-btn <?= $isPopular ? 'gradient-btn btn' : 'btn btn-outline-secondary' ?> w-100"
-                  data-package-id="<?= (int) $package['id'] ?>" data-package-name="<?= e($package['name']) ?>">Buy Now</button>
+          <?php if ($paymentsEnabled): ?>
+            <button type="button" class="buy-package-btn <?= $isPopular ? 'gradient-btn btn' : 'btn btn-outline-secondary' ?> w-100"
+                    data-package-id="<?= (int) $package['id'] ?>" data-package-name="<?= e($package['name']) ?>">Buy Now</button>
+          <?php else: ?>
+            <button type="button" class="btn btn-outline-secondary w-100" disabled>Coming soon</button>
+          <?php endif; ?>
         </div>
       </div>
     <?php endforeach; ?>
@@ -46,7 +57,11 @@
       </div>
       <div class="mb-0">
         <div class="fw-semibold">How do I pay?</div>
-        <p class="text-secondary small mb-0">Via Cashfree — UPI, cards, and netbanking are all supported.</p>
+        <?php if ($paymentsEnabled): ?>
+          <p class="text-secondary small mb-0">Via Cashfree — UPI, cards, and netbanking are all supported.</p>
+        <?php else: ?>
+          <p class="text-secondary small mb-0">Online payments are coming soon. Until then, every new account gets a free karaoke on signup.</p>
+        <?php endif; ?>
       </div>
     </div>
   </div>
@@ -75,4 +90,6 @@
   </div>
 </div>
 
+<?php if ($paymentsEnabled): ?>
 <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+<?php endif; ?>

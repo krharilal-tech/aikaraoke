@@ -33,6 +33,7 @@ final class PaymentController extends Controller
     public function start(Request $request): void
     {
         $this->requireCsrf($request);
+        $this->requirePaymentsEnabled();
         $this->rateLimit($request, 'payment_start', 20, 600);
 
         try {
@@ -55,6 +56,7 @@ final class PaymentController extends Controller
     public function checkout(Request $request): void
     {
         $this->requireCsrf($request);
+        $this->requirePaymentsEnabled();
         $this->rateLimit($request, 'payment_checkout', 10, 600);
 
         $userId = Auth::id();
@@ -162,6 +164,13 @@ final class PaymentController extends Controller
         // Cashfree retries on non-2xx, and retrying wouldn't change an
         // internal processing outcome (e.g. an order we don't recognize).
         $this->json(['success' => true]);
+    }
+
+    private function requirePaymentsEnabled(): void
+    {
+        if (!Setting::paymentsEnabled()) {
+            $this->json(['success' => false, 'message' => 'Payments are not available yet. Please check back soon.'], 503);
+        }
     }
 
     /**

@@ -45,6 +45,7 @@ final class SettingsController extends Controller
         'youtube_cookies',
         'youtube_proxy',
         'cashfree_env',
+        'payments_enabled',
     ];
 
     /** cookies.txt content routinely runs several KB — everything else here is a short path/model name. */
@@ -104,6 +105,10 @@ final class SettingsController extends Controller
 
         if (isset($dbValues['cashfree_env']) && !in_array($dbValues['cashfree_env'], ['sandbox', 'production'], true)) {
             $dbValues['cashfree_env'] = 'sandbox';
+        }
+
+        if (isset($dbValues['payments_enabled']) && $dbValues['payments_enabled'] !== '1') {
+            $dbValues['payments_enabled'] = '0';
         }
 
         Setting::setMany($dbValues);

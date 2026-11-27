@@ -34,6 +34,7 @@ final class HomeController extends Controller
             'pageScript' => 'js/pricing.js',
             'packages' => Package::activeOrdered(),
             'userPhone' => $user['phone'] ?? null,
+            'paymentsEnabled' => Setting::paymentsEnabled(),
         ]);
     }
 }

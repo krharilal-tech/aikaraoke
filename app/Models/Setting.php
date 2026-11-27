@@ -32,7 +32,15 @@ final class Setting extends Model
         'youtube_cookies' => '',
         'youtube_proxy' => '',
         'cashfree_env' => 'sandbox',
+        // Off until a payment gateway account is active: the pricing page
+        // shows "Payments coming soon" instead of Buy Now.
+        'payments_enabled' => '0',
     ];
+
+    public static function paymentsEnabled(): bool
+    {
+        return self::get('payments_enabled', self::DEFAULTS['payments_enabled']) === '1';
+    }
 
     /**
      * @return array<string, string>
